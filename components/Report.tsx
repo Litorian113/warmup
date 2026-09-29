@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import GoalList from "./GoalList";
 import WarmthChart from "./WarmthChart";
+import { PlayButton, spotOf, type Playback } from "./playback";
 import { outcomeText, rulesCoach } from "@/lib/coach";
 import { isFiller, mmss } from "@/lib/metrics";
 import { fetchCoach, runAnalysis, upgradeAnalysis } from "@/lib/report";
@@ -101,11 +102,29 @@ export default function Report({ id }: { id: string }) {
     void loadAudio();
   }, [loadAudio]);
 
+  // Every play button toggles: play from its spot, or pause if that spot is already playing.
+  const [pb, setPb] = useState<Playback>({ spot: null, playing: false, now: 0 });
   const seek = (t: number) => {
     const a = audioRef.current;
     if (!a) return;
-    a.currentTime = Math.max(0, t);
+    const spot = spotOf(t);
+    if (!a.paused && pb.spot === spot) return a.pause();
+    a.currentTime = spot;
+    setPb((p) => ({ ...p, spot, now: spot }));
     void a.play().catch(() => {});
+  };
+  const audioEvents = {
+    onPlay: () => setPb((p) => ({ ...p, playing: true })),
+    onPause: () => setPb((p) => ({ ...p, playing: false })),
+    onTimeUpdate: (e: React.SyntheticEvent<HTMLAudioElement>) => {
+      const now = e.currentTarget.currentTime;
+      setPb((p) => ({ ...p, now }));
+    },
+    // Scrubbing in the player moves playback away from the spot it started at.
+    onSeeked: (e: React.SyntheticEvent<HTMLAudioElement>) => {
+      const now = e.currentTarget.currentTime;
+      setPb((p) => (p.spot !== null && Math.abs(now - p.spot) > 0.5 ? { ...p, spot: null, now } : { ...p, now }));
+    },
   };
 
   if (rec === undefined) return <div className="wrap center-state"><span className="spinner" /></div>;
@@ -169,7 +188,7 @@ export default function Report({ id }: { id: string }) {
           <p className="muted">{talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}</p>
         </div>
         <div className="card">
-          <WarmthChart points={rec.points} start={rec.startWarmth} duration={rec.durationSec} moments={coach?.moments ?? []} talk={talk} onSeek={seek} />
+          <WarmthChart points={rec.points} start={rec.startWarmth} duration={rec.durationSec} moments={coach?.moments ?? []} talk={talk} onSeek={audioUrl ? seek : undefined} playback={pb} />
         </div>
       </section>
 
@@ -237,9 +256,7 @@ export default function Report({ id }: { id: string }) {
             {coach.moments.map((mo, i) => (
               <li key={i} className="moment" id={`moment-${i}`}>
                 <div className="moment__time">
-                  <button className="play" onClick={() => seek(mo.at)} disabled={!audioUrl} aria-label={`Play from ${mmss(mo.at)}`}>
-                    <PlayIcon /> {mmss(mo.at)}
-                  </button>
+                  <PlayButton at={mo.at} playback={pb} onToggle={seek} disabled={!audioUrl} />
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   <StatusLabel status={mo.kind === "great" ? "good" : mo.kind === "missed" ? "meh" : "bad"} text={mo.kind === "great" ? "Great moment" : mo.kind === "missed" ? "Missed chance" : "Awkward moment"} />
@@ -255,9 +272,12 @@ export default function Report({ id }: { id: string }) {
       )}
 
       <section className="block" aria-labelledby="sound-title">
-        <h2 id="sound-title" className="h2">
-          How you sounded
-        </h2>
+        <div className="block__head">
+          <h2 id="sound-title" className="h2">
+            How you sounded
+          </h2>
+          {rec.analysis && <TileSummary tiles={tilesFor(rec.analysis.metrics, rec, talk)} />}
+        </div>
         {rec.analysis ? (
           <div className="tiles">
             {tilesFor(rec.analysis.metrics, rec, talk).map((t) => (
@@ -282,7 +302,7 @@ export default function Report({ id }: { id: string }) {
           <span className="muted">{rec.analysis ? "Every word, with filler words highlighted." : "Live transcript from the session."}</span>
         </summary>
         <div className="card">
-          <Script rec={rec} name={persona.name} onSeek={audioUrl ? seek : undefined} />
+          <Script rec={rec} name={persona.name} onSeek={audioUrl ? seek : undefined} playback={pb} />
         </div>
       </details>
 
@@ -296,7 +316,7 @@ export default function Report({ id }: { id: string }) {
       {audioUrl && (
         <div className="player">
           <span className="player__label">Recording</span>
-          <audio ref={audioRef} controls preload="metadata" src={audioUrl} onError={() => void loadAudio()} />
+          <audio ref={audioRef} controls preload="metadata" src={audioUrl} onError={() => void loadAudio()} {...audioEvents} />
         </div>
       )}
     </div>
@@ -334,7 +354,7 @@ function Retake({ rec, index, talk, kind }: { rec: SessionRecord; index: number;
   );
 }
 
-function Script({ rec, name, onSeek }: { rec: SessionRecord; name: string; onSeek?: (t: number) => void }) {
+function Script({ rec, name, onSeek, playback }: { rec: SessionRecord; name: string; onSeek?: (t: number) => void; playback: Playback }) {
   if (!rec.analysis) {
     return (
       <div className="script">
@@ -359,9 +379,7 @@ function Script({ rec, name, onSeek }: { rec: SessionRecord; name: string; onSee
         return (
           <div key={i} className={`script__line script__line--${u.who}`}>
             {onSeek ? (
-              <button className="script__time" onClick={() => onSeek(u.start / 1000)} aria-label={`Play from ${mmss(u.start / 1000)}`}>
-                {mmss(u.start / 1000)}
-              </button>
+              <PlayButton at={u.start / 1000} playback={playback} onToggle={onSeek} className="script__time" />
             ) : (
               <span className="script__time">{mmss(u.start / 1000)}</span>
             )}
@@ -397,15 +415,34 @@ interface TileProps {
 
 function Tile({ label, value, unit, status, statusText, note }: TileProps) {
   return (
-    <div className="tile">
-      <span className="tile__label">{label}</span>
+    <div className={`tile tile--${status}`}>
+      <div className="tile__head">
+        <span className="tile__label">{label}</span>
+        <StatusLabel status={status} text={statusText} />
+      </div>
       <span className="tile__value">
         {value}
         {unit && <span className="tile__unit">{unit}</span>}
       </span>
-      <StatusLabel status={status} text={statusText} />
       <span className="tile__note">{note}</span>
     </div>
+  );
+}
+
+/** At a glance: how many metrics went well and how many are worth working on. */
+function TileSummary({ tiles }: { tiles: TileProps[] }) {
+  const groups: [Status, string][] = [
+    ["good", "going well"],
+    ["meh", "worth watching"],
+    ["bad", "to work on"],
+  ];
+  return (
+    <p className="tile-summary">
+      {groups.map(([status, text]) => {
+        const n = tiles.filter((t) => t.status === status).length;
+        return n ? <StatusLabel key={status} status={status} text={`${n} ${text}`} /> : null;
+      })}
+    </p>
   );
 }
 
@@ -431,7 +468,7 @@ function tilesFor(m: Metrics, rec: SessionRecord, talk: boolean): TileProps[] {
     note: fillerBreakdown ? `${m.fillers} in total: ${fillerBreakdown}.` : "No ums or uhs detected.",
   };
   const pause: TileProps = {
-    label: "Longest pause mid-sentence",
+    label: "Longest pause",
     value: m.longestPause.toFixed(1),
     unit: "sec",
     status: m.longestPause <= 2 ? "good" : m.longestPause <= 3.5 ? "meh" : "bad",
@@ -528,13 +565,5 @@ function StatusLabel({ status, text }: { status: Status; text: string }) {
       </svg>
       {text}
     </span>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-      <path d="M2 1.2v7.6L8.6 5z" fill="currentColor" />
-    </svg>
   );
 }

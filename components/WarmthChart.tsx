@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { isPlayingFrom, PlayButton, type Playback } from "./playback";
 import { mmss } from "@/lib/metrics";
 import { MOODS, moodFor } from "@/lib/scenarios";
 import type { CoachReport, WarmthPoint } from "@/lib/store";
@@ -14,6 +15,10 @@ const KIND = {
   awkward: { color: "var(--bad)", label: "Awkward moment" },
 } as const;
 
+/** A point is saved when the turn ends; playing it starts a few seconds earlier, as the turn begins. */
+const turnSpot = (t: number) => Math.max(0, t - 4);
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "±0");
+
 interface Props {
   points: WarmthPoint[];
   start: number;
@@ -21,9 +26,10 @@ interface Props {
   moments: CoachReport["moments"];
   talk: boolean;
   onSeek?: (t: number) => void;
+  playback?: Playback;
 }
 
-export default function WarmthChart({ points, start, duration, moments, talk, onSeek }: Props) {
+export default function WarmthChart({ points, start, duration, moments, talk, onSeek, playback }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(760);
   const [hover, setHover] = useState<number | null>(null);
@@ -61,6 +67,14 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
 
   const hp = hover !== null ? data[hover] : null;
   const tipLeft = hp ? (x(hp.t) > w / 2 ? Math.max(0, x(hp.t) - 312) : Math.min(w - 300, x(hp.t) + 12)) : 0;
+  const hoverPlaying = hp ? isPlayingFrom(playback, turnSpot(hp.t)) : false;
+  const playheadX = playback?.playing ? x(playback.now) : null;
+  const key = (e: React.KeyboardEvent, t: number) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSeek?.(t);
+    }
+  };
 
   return (
     <div className="chart" ref={wrap}>
@@ -97,6 +111,14 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
 
         {hp && <line x1={x(hp.t)} x2={x(hp.t)} y1={m.top} y2={y(0)} stroke="var(--ink-3)" strokeWidth={1} />}
 
+        {/* where the recording is playing right now */}
+        {playheadX !== null && (
+          <g className="chart__playhead" style={{ transform: `translateX(${playheadX.toFixed(1)}px)` }} aria-hidden="true">
+            <line x1={0} x2={0} y1={m.top} y2={y(0) + 24} />
+            <circle cx={0} cy={m.top} r={3.5} />
+          </g>
+        )}
+
         {/* pointer layer: the crosshair snaps to the nearest turn */}
         <rect
           x={m.left}
@@ -111,55 +133,60 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
           onPointerLeave={() => setHover(null)}
         />
 
-        {data.map((d, i) =>
-          i === 0 || d.kind === "tick" ? null : (
+        {data.map((d, i) => {
+          if (i === 0 || d.kind === "tick") return null;
+          const active = isPlayingFrom(playback, turnSpot(d.t));
+          return (
             <g
               key={i}
-              className="chart__point"
+              className={`chart__point${active ? " is-playing" : ""}`}
               tabIndex={0}
               role="button"
-              aria-label={`${mmss(d.t)}: ${d.value} out of 100. You said: ${d.said}`}
+              aria-pressed={active}
+              aria-label={`${mmss(d.t)}: ${d.value} out of 100. You said: ${d.said}. ${active ? "Pause" : "Play"} this turn.`}
               onFocus={() => setHover(i)}
               onBlur={() => setHover(null)}
               onPointerEnter={() => setHover(i)}
-              onClick={() => onSeek?.(Math.max(0, d.t - 4))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSeek?.(Math.max(0, d.t - 4));
-                }
-              }}
+              onClick={() => onSeek?.(turnSpot(d.t))}
+              onKeyDown={(e) => key(e, turnSpot(d.t))}
             >
               <circle cx={x(d.t)} cy={y(d.value)} r={12} fill="transparent" />
-              <circle className="chart__dot" cx={x(d.t)} cy={y(d.value)} r={hover === i ? 6 : 4.5} fill={warmthColor(d.value)} stroke="#fff" strokeWidth={2} />
+              {active && <circle className="chart__pulse" cx={x(d.t)} cy={y(d.value)} r={9} />}
+              <circle className="chart__dot" cx={x(d.t)} cy={y(d.value)} r={hover === i || active ? 6 : 4.5} fill={warmthColor(d.value)} stroke="#fff" strokeWidth={2} />
             </g>
-          ),
-        )}
+          );
+        })}
 
         {/* coach moments, pinned under the timeline */}
-        {moments.map((mo, i) => (
-          <g
-            key={i}
-            tabIndex={0}
-            role="button"
-            aria-label={`${KIND[mo.kind].label} at ${mmss(mo.at)}: ${mo.comment}`}
-            style={{ cursor: "pointer" }}
-            onClick={() => onSeek?.(mo.at)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSeek?.(mo.at);
-              }
-            }}
-          >
-            <title>{`${KIND[mo.kind].label} at ${mmss(mo.at)}`}</title>
-            <circle cx={x(mo.at)} cy={y(0) + 36} r={12} fill="transparent" />
-            <circle cx={x(mo.at)} cy={y(0) + 36} r={7} fill={KIND[mo.kind].color} stroke="#fff" strokeWidth={2} />
-            <text x={x(mo.at)} y={y(0) + 36} textAnchor="middle" dominantBaseline="central" fontSize="9" fontWeight="800" fill="#fff">
-              {mo.kind === "great" ? "✓" : "!"}
-            </text>
-          </g>
-        ))}
+        {moments.map((mo, i) => {
+          const active = isPlayingFrom(playback, mo.at);
+          const cx = x(mo.at);
+          const cy = y(0) + 36;
+          return (
+            <g
+              key={i}
+              className={`chart__moment${active ? " is-playing" : ""}`}
+              tabIndex={0}
+              role="button"
+              aria-pressed={active}
+              aria-label={`${KIND[mo.kind].label} at ${mmss(mo.at)}: ${mo.comment}. ${active ? "Pause" : "Play"}.`}
+              onClick={() => onSeek?.(mo.at)}
+              onKeyDown={(e) => key(e, mo.at)}
+            >
+              <title>{`${KIND[mo.kind].label} at ${mmss(mo.at)}. Click to ${active ? "pause" : "play"}.`}</title>
+              <circle cx={cx} cy={cy} r={14} fill="transparent" />
+              {active && <circle className="chart__pulse" cx={cx} cy={cy} r={11} style={{ stroke: KIND[mo.kind].color }} />}
+              <circle className="chart__marker" cx={cx} cy={cy} r={active ? 9 : 7} fill={KIND[mo.kind].color} stroke="#fff" strokeWidth={2} />
+              {active ? (
+                <path d={`M${cx - 3} ${cy - 3.5}h2v7h-2zM${cx + 1} ${cy - 3.5}h2v7h-2z`} fill="#fff" />
+              ) : (
+                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize="9" fontWeight="800" fill="#fff">
+                  {mo.kind === "great" ? "✓" : "!"}
+                </text>
+              )}
+            </g>
+          );
+        })}
       </svg>
 
       {hp && (
@@ -173,40 +200,82 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
             <ul className="tooltip__signals">
               {hp.signals.map((s, i) => (
                 <li key={i}>
-                  {s.delta > 0 ? `+${s.delta}` : `−${-s.delta}`} {s.label}
+                  {signed(s.delta)} {s.label}
                 </li>
               ))}
             </ul>
           )}
+          {onSeek && hover !== 0 && hp.kind !== "tick" && <span className="tooltip__hint">{hoverPlaying ? "Click to pause" : "Click to hear this turn"}</span>}
         </div>
       )}
 
-      <details className="chart-table">
-        <summary>Show turn by turn</summary>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Time</th>
-              <th scope="col">{talk ? "Attention" : "Warmth"}</th>
-              <th scope="col">You said</th>
-              <th scope="col">What moved it</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.filter((p) => p.kind !== "tick").map((p, i) => (
-              <tr key={i}>
-                <td>{mmss(p.t)}</td>
-                <td>
-                  {p.value} ({p.delta >= 0 ? "+" : "−"}
-                  {Math.abs(p.delta)})
-                </td>
-                <td>{p.said}</td>
-                <td>{p.signals.map((s) => s.label).join(", ") || "Nothing notable"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
+      <Turns points={points} talk={talk} onSeek={onSeek} playback={playback} />
     </div>
+  );
+}
+
+/** Every scored turn as a card: what you said, what it did to the meter, and why. */
+function Turns({ points, talk, onSeek, playback }: { points: WarmthPoint[]; talk: boolean; onSeek?: (t: number) => void; playback?: Playback }) {
+  const turns = points.filter((p) => p.kind !== "tick");
+  if (!turns.length) return null;
+  const up = turns.filter((p) => p.delta > 0).length;
+  const down = turns.filter((p) => p.delta < 0).length;
+  return (
+    <details className="turns-block">
+      <summary>
+        <span className="turns-block__title">Turn by turn</span>
+        <span className="turns-block__meta">
+          {turns.length} {turns.length === 1 ? "turn" : "turns"}
+          {up > 0 && <span className="turn__delta turn__delta--up">{up} up</span>}
+          {down > 0 && <span className="turn__delta turn__delta--down">{down} down</span>}
+        </span>
+      </summary>
+      <ol className="turns">
+        {turns.map((p, i) => (
+          <Turn key={i} p={p} talk={talk} onSeek={onSeek} playback={playback} />
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+function Turn({ p, talk, onSeek, playback }: { p: WarmthPoint; talk: boolean; onSeek?: (t: number) => void; playback?: Playback }) {
+  const [open, setOpen] = useState(false);
+  const long = p.said.length > 220;
+  const tone = p.delta > 0 ? "up" : p.delta < 0 ? "down" : "flat";
+  const spot = turnSpot(p.t);
+  return (
+    <li className={`turn turn--${tone}${isPlayingFrom(playback, spot) ? " is-playing" : ""}`}>
+      <div className="turn__when">
+        {onSeek && playback ? <PlayButton at={spot} playback={playback} onToggle={onSeek} /> : <span className="turn__time">{mmss(p.t)}</span>}
+      </div>
+      <div className="turn__body">
+        <p className={`turn__said${long && !open ? " is-clamped" : ""}`}>“{p.said}”</p>
+        {long && (
+          <button className="turn__more" onClick={() => setOpen(!open)} aria-expanded={open}>
+            {open ? "Show less" : "Show all"}
+          </button>
+        )}
+        <div className="turn__signals">
+          {p.signals.length ? (
+            p.signals.map((s, k) => (
+              <span key={k} className={`chip ${s.delta > 0 ? "chip--up" : "chip--down"}`}>
+                <span className="chip__delta">{signed(s.delta)}</span>
+                {s.label}
+              </span>
+            ))
+          ) : (
+            <span className="small muted">Nothing moved the meter.</span>
+          )}
+        </div>
+      </div>
+      <div className="turn__score" aria-label={`${talk ? "Attention" : "Warmth"} ${p.value}, ${signed(p.delta)}`}>
+        <span className={`turn__delta turn__delta--${tone}`}>{signed(p.delta)}</span>
+        <span className="turn__value">
+          <span className="temp-dot" style={{ background: warmthColor(p.value) }} aria-hidden="true" />
+          {p.value}
+        </span>
+      </div>
+    </li>
   );
 }

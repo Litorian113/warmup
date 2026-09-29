@@ -116,7 +116,7 @@ try {
     page.evaluate((l) => [...document.querySelectorAll(".tile")].find((t) => t.querySelector(".tile__label")?.textContent === l)?.innerText.replace(/\s+/g, " ") ?? "", label);
   const qa = await tile("Average Q&A answer");
   check("Q&A answers are measured whole, across pauses", /18 ?sec/.test(qa) && /Well sized/.test(qa), qa.slice(0, 60));
-  const pause = await tile("Longest pause mid-sentence");
+  const pause = await tile("Longest pause");
   check("pauses where AssemblyAI split an utterance still count", /2\.5 ?sec/.test(pause) && /2 pauses/.test(pause), pause.slice(0, 70));
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("warmup.sessions.v1") ?? "[]")[0]?.analysis);
   check("the rebuilt analysis is saved", saved?.v === 2 && saved.utterances.filter((u) => u.who === "you").length === 3, `v=${saved?.v}`);
