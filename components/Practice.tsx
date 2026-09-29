@@ -279,7 +279,9 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
       : state.thinking
         ? `${persona.name} is thinking…`
         : state.speaking === "them"
-          ? ""
+          ? state.echo === "gated"
+            ? `Your mic is paused while ${persona.name} talks, so they don't hear themselves.`
+            : ""
           : talkView
             ? state.talkLeft === TALK_SECONDS
               ? "Start whenever you're ready."
@@ -291,6 +293,8 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   return (
     <div
       className="room"
+      data-echo={state.echo}
+      data-output={state.output ?? undefined}
       style={{ "--room": warmthColor(state.warmth), "--warm-c": (state.warmth / 100).toFixed(2) } as React.CSSProperties}
     >
       <div className="wrap room__bar">

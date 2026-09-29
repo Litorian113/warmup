@@ -3,7 +3,10 @@
 // each TTS line only when the app says it's the user's turn, so the conversation is
 // interactive and repeatable. Saves screenshots to scripts/.cache/e2e/.
 //
-//   npm run build && node --env-file=.env scripts/e2e.mjs [party|cafe|stage|...] [--headed]
+//   npm run build && node --env-file=.env scripts/e2e.mjs [party|cafe|stage|...] [--headed] [--echo]
+//
+// --echo simulates a phone on speaker: everything the page plays leaks back into the fake mic.
+// The fake mic bypasses the browser's echo canceller, so this checks the app's own echo guard.
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +16,7 @@ import { CACHE, sleep, tts, wav } from "./lib.mjs";
 const PLAN = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "party";
 const HEADED = process.argv.includes("--headed");
 const MOBILE = process.argv.includes("--mobile"); // run the live session at phone size
+const ECHO = process.argv.includes("--echo"); // the persona's voice leaks back into the mic
 const PORT = 3100;
 const BASE = `http://localhost:${PORT}`;
 const OUT = path.join(CACHE, "e2e");
@@ -105,38 +109,76 @@ async function main() {
 
     browser = await chromium.launch({ executablePath: CHROME, headless: !HEADED, args: ["--autoplay-policy=no-user-gesture-required"] });
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    await context.addInitScript(() => {
-      let ctx, dest;
-      const ensure = () => {
-        if (!ctx) {
-          ctx = new AudioContext();
-          dest = ctx.createMediaStreamDestination();
+    await context.addInitScript(
+      ({ echo }) => {
+        let ctx, dest;
+        const ensure = () => {
+          if (!ctx) {
+            ctx = new AudioContext();
+            dest = ctx.createMediaStreamDestination();
+          }
+          return { ctx, dest };
+        };
+        // like a real mic, every call gets its own track (the app stops its tracks when a session ends)
+        navigator.mediaDevices.getUserMedia = async () => new MediaStream(ensure().dest.stream.getAudioTracks().map((t) => t.clone()));
+        if (echo) {
+          // Speaker-to-mic leak: whatever the page plays reaches the mic 120 ms later at about -9 dB,
+          // whether it plays through an <audio> element or straight out of a Web Audio graph.
+          const leak = (stream) => {
+            const { ctx, dest } = ensure();
+            const delay = ctx.createDelay();
+            delay.delayTime.value = 0.12;
+            const gain = ctx.createGain();
+            gain.gain.value = 0.35;
+            ctx.createMediaStreamSource(stream).connect(delay).connect(gain).connect(dest);
+          };
+          const play = HTMLMediaElement.prototype.play;
+          HTMLMediaElement.prototype.play = function () {
+            if (this.srcObject instanceof MediaStream) leak(this.srcObject);
+            return play.call(this);
+          };
+          const connect = AudioNode.prototype.connect;
+          const taps = new WeakMap();
+          AudioNode.prototype.connect = function (target, ...rest) {
+            if (target instanceof AudioDestinationNode && target.context !== ctx) {
+              let tap = taps.get(target.context);
+              if (!tap) {
+                tap = target.context.createMediaStreamDestination();
+                taps.set(target.context, tap);
+                leak(tap.stream);
+              }
+              connect.call(this, tap);
+            }
+            return connect.call(this, target, ...rest);
+          };
         }
-        return { ctx, dest };
-      };
-      // like a real mic, every call gets its own track (the app stops its tracks when a session ends)
-      navigator.mediaDevices.getUserMedia = async () => new MediaStream(ensure().dest.stream.getAudioTracks().map((t) => t.clone()));
-      window.__statusLog = [];
-      new MutationObserver(() => {
-        const s = document.querySelector(".status-line")?.textContent ?? "";
-        const last = window.__statusLog[window.__statusLog.length - 1];
-        if (!last || last.s !== s) window.__statusLog.push({ at: Date.now(), s });
-      }).observe(document, { subtree: true, childList: true, characterData: true });
-      window.__fakeMic = {
-        async say(b64) {
-          const { ctx, dest } = ensure();
-          await ctx.resume();
-          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-          const buf = await ctx.decodeAudioData(bytes.buffer);
-          const src = ctx.createBufferSource();
-          src.buffer = buf;
-          src.connect(dest);
-          src.start();
-          await new Promise((r) => (src.onended = r));
-          return buf.duration;
-        },
-      };
-    });
+        window.__statusLog = [];
+        window.__audioLog = [];
+        new MutationObserver(() => {
+          const s = document.querySelector(".status-line")?.textContent ?? "";
+          const last = window.__statusLog[window.__statusLog.length - 1];
+          if (!last || last.s !== s) window.__statusLog.push({ at: Date.now(), s });
+          const room = document.querySelector(".room");
+          const a = room ? `output=${room.dataset.output ?? "?"} echo=${room.dataset.echo ?? "?"}` : null;
+          if (a && window.__audioLog[window.__audioLog.length - 1] !== a) window.__audioLog.push(a);
+        }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["data-echo", "data-output"] });
+        window.__fakeMic = {
+          async say(b64) {
+            const { ctx, dest } = ensure();
+            await ctx.resume();
+            const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+            const buf = await ctx.decodeAudioData(bytes.buffer);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(dest);
+            src.start();
+            await new Promise((r) => (src.onended = r));
+            return buf.duration;
+          },
+        };
+      },
+      { echo: ECHO },
+    );
 
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
@@ -154,6 +196,7 @@ async function main() {
         try {
           const ev = JSON.parse(payload);
           if (dir === "in") wsEvents[ev.type] = (wsEvents[ev.type] ?? 0) + 1;
+          if (ev.type === "reply.done" && ev.status === "interrupted") wsEvents["reply.done(interrupted)"] = (wsEvents["reply.done(interrupted)"] ?? 0) + 1;
           timeline.push({ t: Date.now() - T0, dir, type: ev.type, ...(ev.type === "reply.audio" ? { bytes: ev.data.length } : ev.type === "input.audio" ? {} : { ev: { ...ev, audio: undefined, data: undefined } }) });
           if (ev.type === "reply.audio" && turn.saidAt && !turn.firstAudioAt) turn.firstAudioAt = Date.now();
           if (ev.type === "input.audio" || ev.type === "reply.audio" || ev.type?.endsWith(".delta")) return;
@@ -292,6 +335,7 @@ async function main() {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(OUT, `report-${SCENE}-mobile.png`), fullPage: true });
     log(`ws events: ${JSON.stringify(wsEvents)}`);
+    log(`audio route: ${(await page.evaluate(() => window.__audioLog ?? []).catch(() => [])).join(" -> ") || "(not reported)"}${ECHO ? " [simulated speaker echo]" : ""}`);
     const statusLog = await page.evaluate(() => window.__statusLog ?? []).catch(() => []);
     await writeFile(path.join(OUT, `timeline-${SCENE}.json`), JSON.stringify({ T0, timeline, statusLog, marks }, null, 1));
   } catch (e) {

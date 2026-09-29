@@ -1,5 +1,6 @@
 // Captures mic audio at the context's native rate, resamples to 24 kHz (linear interpolation
-// with a light low-pass), converts to PCM16 and posts 50 ms chunks plus their RMS level.
+// with a light low-pass), converts to PCM16 and posts 50 ms chunks plus their RMS level and the
+// context time they were captured at (so they can be lined up with playback).
 // Resampling here, instead of forcing AudioContext({ sampleRate: 24000 }), keeps Firefox's
 // echo canceller working and Safari's audio from coming out chipmunked.
 class MicProcessor extends AudioWorkletProcessor {
@@ -47,7 +48,7 @@ class MicProcessor extends AudioWorkletProcessor {
     this.chunk[this.n++] = v < 0 ? v * 0x8000 : v * 0x7fff;
     if (this.n === this.size) {
       const rms = Math.sqrt(this.sumSq / this.size);
-      this.port.postMessage({ pcm: this.chunk.buffer, rms }, [this.chunk.buffer]);
+      this.port.postMessage({ pcm: this.chunk.buffer, rms, t: currentTime }, [this.chunk.buffer]);
       this.chunk = new Int16Array(this.size);
       this.n = 0;
       this.sumSq = 0;

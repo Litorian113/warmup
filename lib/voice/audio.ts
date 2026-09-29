@@ -1,11 +1,14 @@
 // Browser audio: microphone capture (24 kHz PCM16 chunks) and agent playback.
 
 export const AGENT_RATE = 24000;
+const BLOCK = AGENT_RATE / 20; // 50 ms of agent audio
+const ECHO_TAIL_MS = 200; // how long the voice lingers in the mic after playback (room, buffers)
 
 export class MicCapture {
   private ctx?: AudioContext;
   private stream?: MediaStream;
-  onChunk: (pcm: ArrayBuffer, rms: number) => void = () => {};
+  /** `at` is when the chunk was captured, in performance.now() time. */
+  onChunk: (pcm: ArrayBuffer, rms: number, at: number) => void = () => {};
   level = 0;
 
   async start() {
@@ -24,14 +27,22 @@ export class MicCapture {
     const node = new AudioWorkletNode(this.ctx, "mic-processor", {
       processorOptions: { targetRate: AGENT_RATE, chunkMs: 50 },
     });
-    node.port.onmessage = (e: MessageEvent<{ pcm: ArrayBuffer; rms: number }>) => {
+    node.port.onmessage = (e: MessageEvent<{ pcm: ArrayBuffer; rms: number; t: number }>) => {
       this.level = e.data.rms;
-      this.onChunk(e.data.pcm, e.data.rms);
+      this.onChunk(e.data.pcm, e.data.rms, this.toPerf(e.data.t));
     };
     const mute = this.ctx.createGain();
     mute.gain.value = 0;
     source.connect(node).connect(mute).connect(this.ctx.destination);
     if (this.ctx.state === "suspended") await this.ctx.resume();
+  }
+
+  /** Maps capture-context time to performance.now() time, unaffected by main-thread delays. */
+  private toPerf(t: number) {
+    const now = performance.now();
+    const ts = this.ctx?.getOutputTimestamp?.();
+    const at = ts?.performanceTime ? ts.performanceTime + (t - (ts.contextTime ?? 0)) * 1000 : now;
+    return Math.abs(at - now) < 1000 ? at : now; // a chunk is never older than that; distrust odd clocks
   }
 
   async stop() {
@@ -49,6 +60,11 @@ export class Player {
   private buf: Float32Array<ArrayBuffer>;
   private next = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  /** Level of every 50 ms of queued audio, in performance.now() time, for echo detection. */
+  private blocks: { at: number; end: number; rms: number }[] = [];
+  private call: { send: RTCPeerConnection; receive: RTCPeerConnection; el: HTMLAudioElement } | null = null;
+  /** How the voice reaches the speaker: straight from Web Audio, or as call audio (see playAsCallAudio). */
+  route: "direct" | "webrtc" = "direct";
 
   constructor() {
     this.ctx = new AudioContext();
@@ -61,6 +77,57 @@ export class Player {
 
   async resume() {
     if (this.ctx.state === "suspended") await this.ctx.resume();
+  }
+
+  /**
+   * Phones only cancel echo from audio they know is call audio: mobile Chrome and Safari leave
+   * Web Audio output out of the echo canceller, so on a speaker the agent hears itself and cuts
+   * itself off. Sending the voice through a local WebRTC connection and playing it from an
+   * <audio> element makes it call audio. Keeps direct playback if anything fails.
+   * Call it after the mic is open: browsers only gather local network candidates during capture.
+   */
+  async playAsCallAudio(timeoutMs = 2500): Promise<boolean> {
+    if (typeof RTCPeerConnection === "undefined") return false;
+    const send = new RTCPeerConnection();
+    const receive = new RTCPeerConnection();
+    const el = document.createElement("audio");
+    try {
+      const dest = this.ctx.createMediaStreamDestination();
+      send.onicecandidate = (e) => e.candidate && receive.addIceCandidate(e.candidate).catch(() => {});
+      receive.onicecandidate = (e) => e.candidate && send.addIceCandidate(e.candidate).catch(() => {});
+      const track = new Promise<MediaStream>((resolve) => {
+        receive.ontrack = (e) => resolve(e.streams[0] ?? new MediaStream([e.track]));
+      });
+      const connected = new Promise<void>((resolve, reject) => {
+        receive.oniceconnectionstatechange = () => {
+          const s = receive.iceConnectionState;
+          if (s === "connected" || s === "completed") resolve();
+          else if (s === "failed" || s === "closed") reject(new Error(`call audio ${s}`));
+        };
+      });
+      dest.stream.getAudioTracks().forEach((t) => send.addTrack(t, dest.stream));
+      await send.setLocalDescription(await send.createOffer());
+      await receive.setRemoteDescription(send.localDescription!);
+      await receive.setLocalDescription(await receive.createAnswer());
+      await send.setRemoteDescription(receive.localDescription!);
+      const [stream] = await withTimeout(Promise.all([track, connected]), timeoutMs);
+      el.hidden = true;
+      el.setAttribute("playsinline", "");
+      el.srcObject = stream;
+      document.body.appendChild(el);
+      await withTimeout(el.play(), timeoutMs);
+      this.analyser.disconnect();
+      this.analyser.connect(dest);
+      this.call = { send, receive, el };
+      this.route = "webrtc";
+      return true;
+    } catch {
+      send.close();
+      receive.close();
+      el.srcObject = null;
+      el.remove();
+      return false;
+    }
   }
 
   /** Queues a base64 PCM16 chunk. Returns the performance.now() time it starts playing. */
@@ -82,7 +149,15 @@ export class Player {
     this.next = startAt + audio.duration;
     this.sources.add(src);
     src.onended = () => this.sources.delete(src);
-    return performance.now() + (startAt - this.ctx.currentTime) * 1000;
+    const startsAt = performance.now() + (startAt - this.ctx.currentTime) * 1000;
+    for (let i = 0; i < n; i += BLOCK) {
+      const end = Math.min(n, i + BLOCK);
+      let sum = 0;
+      for (let j = i; j < end; j++) sum += ch[j] * ch[j];
+      this.blocks.push({ at: startsAt + (i / AGENT_RATE) * 1000, end: startsAt + (end / AGENT_RATE) * 1000, rms: Math.sqrt(sum / (end - i)) });
+    }
+    if (this.blocks.length > 1200) this.blocks.splice(0, this.blocks.length - 1200); // the last minute
+    return startsAt;
   }
 
   flush() {
@@ -95,6 +170,10 @@ export class Player {
     }
     this.sources.clear();
     this.next = this.ctx.currentTime;
+    const now = performance.now();
+    while (this.blocks.length && this.blocks[this.blocks.length - 1].at > now) this.blocks.pop();
+    const last = this.blocks[this.blocks.length - 1];
+    if (last && last.end > now) last.end = now;
   }
 
   /** performance.now() time when everything queued so far has finished playing. */
@@ -106,6 +185,33 @@ export class Player {
     return this.next > this.ctx.currentTime + 0.02;
   }
 
+  /** Level of the voice that was queued to play at performance.now() time t (0 if none). */
+  levelAt(t: number) {
+    const b = this.blockAt(t);
+    return b && t < b.end ? b.rms : 0;
+  }
+
+  /** Whether the voice could be reaching the mic at performance.now() time t, echo tail included. */
+  audibleAt(t: number) {
+    const b = this.blockAt(t);
+    const delay = (this.ctx.outputLatency || 0) * 1000 + (this.route === "webrtc" ? 60 : 0);
+    return !!b && t < b.end + delay + ECHO_TAIL_MS;
+  }
+
+  private blockAt(t: number) {
+    let lo = 0;
+    let hi = this.blocks.length - 1;
+    let found = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.blocks[mid].at <= t) {
+        found = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    return found === -1 ? null : this.blocks[found];
+  }
+
   level() {
     this.analyser.getFloatTimeDomainData(this.buf);
     let sum = 0;
@@ -115,8 +221,20 @@ export class Player {
 
   async close() {
     this.flush();
+    if (this.call) {
+      this.call.el.pause();
+      this.call.el.srcObject = null;
+      this.call.el.remove();
+      this.call.send.close();
+      this.call.receive.close();
+      this.call = null;
+    }
     await this.ctx.close().catch(() => {});
   }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
 }
 
 export function toBase64(buf: ArrayBuffer) {

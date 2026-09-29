@@ -50,7 +50,7 @@ Text-to-speech for the test harness also comes from the Voice Agent API: a sessi
 Browser (Next.js client)                              AssemblyAI
 ─────────────────────────────────────────────────     ─────────────────────────────────
 mic → AudioWorklet (resample to 24 kHz PCM16) ──────► Voice Agent API (WebSocket)
-speaker ◄── scheduled playback, flushed on barge-in ◄─  persona voice + events
+speaker ◄── <audio> ◄── local WebRTC ◄── playback ◄─────  persona voice + events
 engagement model runs after every turn ──session.update / reply.create──►
         │
         └─ session ends → /report/[id]
@@ -60,6 +60,13 @@ engagement model runs after every turn ──session.update / reply.create──
 ```
 
 The server is a handful of route handlers that hold the API key: token minting, analysis start and poll, coach, and fresh recording URLs. Practice history lives in the browser's localStorage, and recordings stay in the AssemblyAI account. There is no database.
+
+### Talking on a phone speaker
+
+A voice agent on a speaker hears itself unless the browser cancels the echo, and phone browsers only reliably cancel echo from call audio. Played through Web Audio, the persona's voice leaked into the mic, and the agent kept cutting itself off mid-sentence. Two fixes (`lib/voice/audio.ts`, `lib/voice/echo.ts`):
+
+- **Call audio.** The voice goes through a WebRTC connection inside the page (two `RTCPeerConnection`s, no server) and plays from an `<audio>` element, so the echo canceller treats it like the other side of a call. It connects in about 0.1 s and adds about 30 ms. If it fails, playback falls back to Web Audio.
+- **Echo guard.** While the persona gives their greeting, the mic is muted and the guard checks whether the mic level rises and falls with the voice that is playing. If it does, the echo is getting through, and for the rest of the session the mic is muted while the persona talks, with a note on screen saying so. Otherwise the mic stays open and you can interrupt as usual. The guard keeps checking in case the echo starts later, for example when headphones come out.
 
 ## Run it
 
@@ -89,7 +96,7 @@ Everything in `scripts/` runs against the real APIs (`node --env-file=.env scrip
 
 | Script | What it does |
 | --- | --- |
-| `e2e.mjs <plan> [--retake] [--mobile]` | Runs the production build in headless Chromium with a fake microphone that speaks text-to-speech lines whenever the app says it's your turn. It exercises the real mic worklet, WebSocket, playback, engagement model and report pipeline, and saves screenshots. Plans: `cafe`, `coworker`, `party`, `networking`, `first-date`, `ask-out` (a warm chat, then the ask), `cold` (one-word answers until the persona walks away) and `stage`. `--retake` also replays a flagged moment; `--mobile` runs the session at phone size. |
+| `e2e.mjs <plan> [--retake] [--mobile] [--echo]` | Runs the production build in headless Chromium with a fake microphone that speaks text-to-speech lines whenever the app says it's your turn. It exercises the real mic worklet, WebSocket, playback, engagement model and report pipeline, and saves screenshots. Plans: `cafe`, `coworker`, `party`, `networking`, `first-date`, `ask-out` (a warm chat, then the ask), `cold` (one-word answers until the persona walks away) and `stage`. `--retake` also replays a flagged moment; `--mobile` runs the session at phone size; `--echo` plays everything the page outputs back into the mic, like a phone on speaker (the fake mic skips the browser's echo canceller, so this tests the echo guard). |
 | `ui-checks.mjs` | Fast checks with no voice sessions (no API cost): the ladder, the persona choice, the blocked-microphone message, 404 pages, and no horizontal scroll on phones. |
 | `simulate.mjs` | A scripted user talking to a persona at real-time pace, printing per-turn latency. |
 | `analyze.mjs <session_id>` | Fetches a session's recording and transcribes it with multichannel and disfluencies. |
@@ -101,6 +108,7 @@ What we measured with it:
 - **Recording:** available right after the session ends.
 - **Transcription:** 8 to 16 seconds for a one-minute two-channel recording.
 - **Filler words:** in our tests the live transcript mostly drops them, but `disfluencies` on the recording keeps them.
+- **Echo:** with `--echo`, the app without the echo guard cut the persona off on every reply, 9 times in a row, and never got to the user's turn. With the guard, the café and stage runs had no cut-offs. Without the echo, the guard keeps the mic open, and interrupting still works.
 
 ## Project layout
 

@@ -3,6 +3,7 @@
 // steers the persona's mood mid-session with session.update.
 import { AgentConnection, type AgentEvent } from "./voice/agent";
 import { MicCapture, Player } from "./voice/audio";
+import { EchoGuard, type EchoMode } from "./voice/echo";
 import { checkGoal, FAREWELL, isQuestion, nextWarmth, scoreTurn, sharedTopic, suggestTip, words, type Signal } from "./engagement";
 import {
   hostQaPrompt,
@@ -48,6 +49,10 @@ export interface LiveState {
   /** Talk mode: seconds left in the talk; null while the host is still introducing it. */
   talkLeft: number | null;
   answers: number;
+  /** Echo handling: "gated" means the mic is muted while the persona talks (see EchoGuard). */
+  echo: EchoMode;
+  /** How the persona's voice is played: "webrtc" is call audio, which phones echo-cancel. */
+  output: "direct" | "webrtc" | null;
 }
 
 const FILLER = /\b(um+|uh+|erm|er)\b/gi;
@@ -63,6 +68,8 @@ export class Conversation {
   private agent = new AgentConnection();
   private mic = new MicCapture();
   private player: Player | null = null;
+  private echo = new EchoGuard((t) => this.player?.levelAt(t) ?? 0);
+  private micMuted = false;
   private t0 = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private raf = 0;
@@ -132,6 +139,8 @@ export class Conversation {
       phase: scene.kind === "talk" ? "talk" : null,
       talkLeft: null,
       answers: 0,
+      echo: "probe",
+      output: null,
     };
   }
 
@@ -151,7 +160,7 @@ export class Conversation {
 
   /** Live audio levels for animation, read every frame without re-rendering React. */
   levels() {
-    return { you: this.mic.level, them: this.player?.level() ?? 0 };
+    return { you: this.micMuted ? 0 : this.mic.level, them: this.player?.level() ?? 0 };
   }
 
   // ---------- lifecycle ----------
@@ -164,7 +173,10 @@ export class Conversation {
       this.player = new Player();
       await this.player.resume();
       await this.mic.start();
-      this.mic.onChunk = (pcm) => this.agent.sendAudio(pcm);
+      this.mic.onChunk = (pcm, rms, at) => this.onMic(pcm, rms, at);
+      this.echo.onChange = (echo) => this.set({ echo });
+      await this.player.playAsCallAudio();
+      this.set({ output: this.player.route });
 
       const talk = this.scene.kind === "talk";
       const topic = talk ? pick(TALK_TOPICS) : null;
@@ -219,6 +231,12 @@ export class Conversation {
   }
 
   private onPageHide = () => this.agent.endNow();
+
+  private onMic(pcm: ArrayBuffer, rms: number, at: number) {
+    const audible = this.player?.audibleAt(at) ?? false;
+    this.micMuted = this.echo.frame(at, rms, audible);
+    this.agent.sendAudio(this.micMuted ? new ArrayBuffer(pcm.byteLength) : pcm); // silence keeps the stream's timing
+  }
 
   private async finish(outcome: Outcome, error?: string) {
     if (this.state.status !== "live" && this.state.status !== "connecting") return;
