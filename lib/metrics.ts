@@ -20,17 +20,69 @@ export interface RawTranscript {
   utterances?: { channel?: string; speaker?: string; start: number; end: number; text: string; words?: { text: string; start: number; end: number }[] }[];
 }
 
+/** Version of the utterance and metric computation; saved analyses from older versions get recomputed. */
+export const ANALYSIS_VERSION = 2;
+
 export function toUtterances(t: RawTranscript): Utterance[] {
-  return (t.utterances ?? []).flatMap((u): Utterance[] => {
+  const segments = (t.utterances ?? []).flatMap((u): Utterance[] => {
     const who = String(u.channel ?? u.speaker) === "1" ? "you" : "them";
     const all = (u.words ?? []).map(({ text, start, end }) => ({ text, start, end }));
     if (!all.length) return u.text.trim() ? [{ who, start: u.start, end: u.end, text: u.text, words: [] }] : [];
     // Drop listening noises on both channels; on the persona's channel fillers are breath
-    // artifacts of the synthetic voice. Timing is recomputed from the words that remain.
+    // artifacts of the synthetic voice.
     const words = all.filter((w) => !isBackchannel(w.text) && !(who === "them" && isFiller(w.text)));
-    if (!words.length) return [];
-    return [{ who, start: words[0].start, end: words[words.length - 1].end, text: words.map((w) => w.text).join(" "), words }];
+    return words.length ? [{ who, start: words[0].start, end: words[words.length - 1].end, text: "", words }] : [];
   });
+  return toTurns(segments);
+}
+
+/**
+ * Multichannel utterances don't follow turn-taking: one can run across several of your turns
+ * while the persona talks in between, or split a sentence in two. So turns are rebuilt from word
+ * timings: a turn runs on through its pauses until the other person starts talking in one of them.
+ */
+export function toTurns(utts: Utterance[]): Utterance[] {
+  const wordsOf = (who: Utterance["who"]) =>
+    utts
+      .filter((u) => u.who === who)
+      .flatMap((u) => (u.words.length ? u.words : [{ text: u.text, start: u.start, end: u.end }]))
+      .sort((a, b) => a.start - b.start);
+  const words = { you: wordsOf("you"), them: wordsOf("them") };
+  const turns: Utterance[] = [];
+  for (const who of ["you", "them"] as const) {
+    const other = words[who === "you" ? "them" : "you"];
+    let cur: Word[] = [];
+    for (const w of words[who]) {
+      const prev = cur[cur.length - 1];
+      if (prev && !startsBetween(other, prev.end, w.start)) cur.push(w);
+      else {
+        if (cur.length) turns.push(turn(who, cur));
+        cur = [w];
+      }
+    }
+    if (cur.length) turns.push(turn(who, cur));
+  }
+  return turns.sort((a, b) => a.start - b.start);
+}
+
+const turn = (who: Utterance["who"], words: Word[]): Utterance => ({
+  who,
+  start: words[0].start,
+  end: Math.max(...words.map((w) => w.end)),
+  text: words.map((w) => w.text).join(" "),
+  words,
+});
+
+/** Whether any of `words` (sorted by start) starts after `from` and before `to`. */
+function startsBetween(words: Word[], from: number, to: number) {
+  let lo = 0;
+  let hi = words.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (words[mid].start <= from) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo < words.length && words[lo].start < to;
 }
 
 export function computeMetrics(utts: Utterance[]): Metrics {
@@ -76,7 +128,7 @@ export function computeMetrics(utts: Utterance[]): Metrics {
   let longestPause = 0;
   for (const u of you) {
     for (let i = 1; i < u.words.length; i++) {
-      const p = (u.words[i].start - u.words[i - 1].end) / 1000;
+      const p = round((u.words[i].start - u.words[i - 1].end) / 1000); // rounded as shown, so the count agrees
       if (p >= 1.5) pauses++;
       longestPause = Math.max(longestPause, p);
     }

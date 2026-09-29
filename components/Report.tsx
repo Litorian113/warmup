@@ -6,7 +6,7 @@ import GoalList from "./GoalList";
 import WarmthChart from "./WarmthChart";
 import { outcomeText, rulesCoach } from "@/lib/coach";
 import { isFiller, mmss } from "@/lib/metrics";
-import { fetchCoach, runAnalysis } from "@/lib/report";
+import { fetchCoach, runAnalysis, upgradeAnalysis } from "@/lib/report";
 import { compareRetake, planRetake } from "@/lib/retake";
 import { SCENES, sceneById, type Scene } from "@/lib/scenarios";
 import { getSession, updateSession, type Metrics, type SessionRecord } from "@/lib/store";
@@ -54,6 +54,14 @@ export default function Report({ id }: { id: string }) {
 
     (async () => {
       let r = initial;
+      if (r.analysis) {
+        const analysis = upgradeAnalysis(r.analysis);
+        if (analysis !== r.analysis) {
+          r = { ...r, analysis };
+          updateSession(id, { analysis });
+          setRec(r);
+        }
+      }
       if (!r.analysis && r.sessionId && r.durationSec > 3) {
         setPhase("transcribing");
         try {
@@ -518,17 +526,19 @@ function tilesFor(m: Metrics, rec: SessionRecord, talk: boolean): TileProps[] {
   ];
 }
 
-/** Talk mode: how long the Q&A answers were, from the utterances after Q&A began. */
+/** Talk mode: how long the Q&A answers were: your turns after the host's first question. */
 function qaTile(rec: SessionRecord): TileProps {
-  const from = (rec.qaStartedAt ?? Infinity) * 1000;
-  const answers = (rec.analysis?.utterances ?? []).filter((u) => u.who === "you" && u.start >= from - 1500);
+  const from = (rec.qaStartedAt ?? Infinity) * 1000 - 1500;
+  const turns = rec.analysis?.utterances ?? [];
+  const firstQuestion = turns.findIndex((u) => u.who === "them" && u.start >= from);
+  const answers = firstQuestion < 0 ? [] : turns.slice(firstQuestion).filter((u) => u.who === "you");
   const avg = answers.length ? answers.reduce((s, u) => s + (u.end - u.start), 0) / answers.length / 1000 : null;
   return {
     label: "Average Q&A answer",
     value: avg === null ? "–" : avg.toFixed(0),
     unit: avg === null ? undefined : "sec",
-    status: avg === null ? "meh" : avg >= 8 && avg <= 45 ? "good" : "meh",
-    statusText: avg === null ? "No answers recorded" : avg < 8 ? "Very brief" : avg > 45 ? "Long-winded" : "Well sized",
+    status: avg !== null && avg >= 15 && avg <= 45 ? "good" : "meh",
+    statusText: avg === null ? "No answers recorded" : avg < 8 ? "Very brief" : avg < 15 ? "A bit short" : avg > 45 ? "Long-winded" : "Well sized",
     note: "Good answers take 15 to 45 seconds: answer, give a reason, stop.",
   };
 }

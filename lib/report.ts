@@ -1,6 +1,6 @@
 // Client-side report pipeline: transcribe the session recording, compute metrics, get coach notes.
 import type { CoachRequest } from "./coach";
-import { computeMetrics, mmss, scriptForPrompt, toUtterances } from "./metrics";
+import { ANALYSIS_VERSION, computeMetrics, mmss, scriptForPrompt, toTurns, toUtterances } from "./metrics";
 import type { Analysis, CoachReport, Metrics, SessionRecord } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -36,10 +36,17 @@ export async function runAnalysis(rec: SessionRecord, signal: AbortSignal): Prom
     if (!res.ok) throw new Error(j.error ?? `Transcription failed (${res.status}).`);
     if (j.status === "completed") {
       const utterances = toUtterances({ id: transcriptId, utterances: j.utterances });
-      return { transcriptId, utterances, metrics: computeMetrics(utterances) };
+      return { transcriptId, utterances, metrics: computeMetrics(utterances), v: ANALYSIS_VERSION };
     }
   }
   throw new Error("Transcription is taking unusually long. Reload this page to check again.");
+}
+
+/** Brings an analysis saved by an older version up to date, from the words it already has. */
+export function upgradeAnalysis(a: Analysis): Analysis {
+  if (a.v === ANALYSIS_VERSION) return a;
+  const utterances = toTurns(a.utterances);
+  return { ...a, utterances, metrics: computeMetrics(utterances), v: ANALYSIS_VERSION };
 }
 
 export const EMPTY_METRICS: Metrics = {

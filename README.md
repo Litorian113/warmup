@@ -39,7 +39,7 @@ Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai) (September 2
 | `reply.create` | The persona leaves when warmth collapses, wraps up long sessions, and starts the Q&A. |
 | Events | `input.speech.*` for response latency and talk detection; `transcript.agent.delta` word timings for captions synced to playback; `reply.done` status for barge-in handling. |
 | **Sessions API** | The stereo recording (left = you, right = persona) and conversation timeline, available right after the session ends. |
-| **Universal-3.5 Pro** (pre-recorded) | Transcribes the recording with `multichannel` and `disfluencies`, straight from the pre-signed recording URL. Every word gets a speaker and exact timing, so filler words, pace, response gaps and pauses are measured, not guessed. |
+| **Universal-3.5 Pro** (pre-recorded) | Transcribes the recording with `multichannel` and `disfluencies`, straight from the pre-signed recording URL. Every word gets a speaker and exact timing, so filler words, pace, response gaps and pauses are measured, not guessed. Multichannel utterances don't follow turn-taking (one can run across several of your turns, or end mid-sentence), so Warmup rebuilds the turns from word timings. A turn lasts until the other person starts talking in one of its pauses. |
 | **LLM Gateway** | Writes the coach notes from the transcript and metrics. The `json-repair` post-processing step keeps small models' JSON parseable. |
 
 Text-to-speech for the test harness also comes from the Voice Agent API: a session's `greeting` is spoken verbatim, so the scripts use it to voice the "user" side.

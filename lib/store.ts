@@ -48,8 +48,11 @@ export interface Metrics {
 
 export interface Analysis {
   transcriptId: string;
+  /** Speaking turns, in time order. */
   utterances: Utterance[];
   metrics: Metrics;
+  /** ANALYSIS_VERSION when computed; older analyses get recomputed from their words. */
+  v?: number;
 }
 
 export interface CoachReport {
