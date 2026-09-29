@@ -55,11 +55,11 @@ export class MicCapture {
 
 export class Player {
   readonly ctx: AudioContext;
+  private node: AudioWorkletNode | null = null;
   private out: GainNode;
   private analyser: AnalyserNode;
   private buf: Float32Array<ArrayBuffer>;
-  private next = 0;
-  private sources = new Set<AudioBufferSourceNode>();
+  private next = 0; // context time when everything queued so far has played
   /** Level of every 50 ms of queued audio, in performance.now() time, for echo detection. */
   private blocks: { at: number; end: number; rms: number }[] = [];
   private call: { send: RTCPeerConnection; receive: RTCPeerConnection; el: HTMLAudioElement } | null = null;
@@ -75,8 +75,16 @@ export class Player {
     this.out.connect(this.analyser).connect(this.ctx.destination);
   }
 
-  async resume() {
+  /** Loads the playback worklet. The context itself must be created inside the click handler. */
+  async start() {
     if (this.ctx.state === "suspended") await this.ctx.resume();
+    await this.ctx.audioWorklet.addModule("/worklets/player-processor.js");
+    this.node = new AudioWorkletNode(this.ctx, "player-processor", {
+      numberOfInputs: 0,
+      outputChannelCount: [1],
+      processorOptions: { inputRate: AGENT_RATE },
+    });
+    this.node.connect(this.out);
   }
 
   /**
@@ -109,7 +117,8 @@ export class Player {
       await send.setLocalDescription(await send.createOffer());
       await receive.setRemoteDescription(send.localDescription!);
       await receive.setLocalDescription(await receive.createAnswer());
-      await send.setRemoteDescription(receive.localDescription!);
+      const answer = receive.localDescription!;
+      await send.setRemoteDescription({ type: "answer", sdp: roomyOpus(answer.sdp) }).catch(() => send.setRemoteDescription(answer));
       const [stream] = await withTimeout(Promise.all([track, connected]), timeoutMs);
       el.hidden = true;
       el.setAttribute("playsinline", "");
@@ -134,22 +143,18 @@ export class Player {
   enqueue(b64: string): number {
     const bin = atob(b64);
     const n = bin.length >> 1;
-    const audio = this.ctx.createBuffer(1, n, AGENT_RATE);
-    const ch = audio.getChannelData(0);
+    const ch = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
       if (v >= 0x8000) v -= 0x10000;
       ch[i] = v / 32768;
     }
-    const src = this.ctx.createBufferSource();
-    src.buffer = audio;
-    src.connect(this.out);
-    const startAt = Math.max(this.ctx.currentTime + 0.03, this.next);
-    src.start(startAt);
-    this.next = startAt + audio.duration;
-    this.sources.add(src);
-    src.onended = () => this.sources.delete(src);
-    const startsAt = performance.now() + (startAt - this.ctx.currentTime) * 1000;
+    // Follow on from the queued audio without a gap; after silence, start 30 ms out.
+    const now = this.ctx.currentTime;
+    const cont = this.next > now + 0.005;
+    const startAt = cont ? this.next : now + 0.03;
+    this.next = startAt + n / AGENT_RATE;
+    const startsAt = performance.now() + (startAt - now) * 1000;
     for (let i = 0; i < n; i += BLOCK) {
       const end = Math.min(n, i + BLOCK);
       let sum = 0;
@@ -157,18 +162,12 @@ export class Player {
       this.blocks.push({ at: startsAt + (i / AGENT_RATE) * 1000, end: startsAt + (end / AGENT_RATE) * 1000, rms: Math.sqrt(sum / (end - i)) });
     }
     if (this.blocks.length > 1200) this.blocks.splice(0, this.blocks.length - 1200); // the last minute
+    this.node?.port.postMessage({ samples: ch, at: startAt, cont }, [ch.buffer]);
     return startsAt;
   }
 
   flush() {
-    for (const s of this.sources) {
-      try {
-        s.onended = null;
-        s.stop(0);
-        s.disconnect();
-      } catch {}
-    }
-    this.sources.clear();
+    this.node?.port.postMessage({ type: "flush" });
     this.next = this.ctx.currentTime;
     const now = performance.now();
     while (this.blocks.length && this.blocks[this.blocks.length - 1].at > now) this.blocks.pop();
@@ -231,6 +230,12 @@ export class Player {
     }
     await this.ctx.close().catch(() => {});
   }
+}
+
+/** Asks for 96 kbit/s Opus instead of the default ~32: this connection never leaves the device. */
+function roomyOpus(sdp: string) {
+  const pt = /a=rtpmap:(\d+) opus\/48000/i.exec(sdp)?.[1];
+  return pt ? sdp.replace(new RegExp(`(a=fmtp:${pt} [^\\r\\n]*)`), "$1;maxaveragebitrate=96000") : sdp;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {

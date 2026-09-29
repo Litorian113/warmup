@@ -52,7 +52,7 @@ What we learned along the way (measurements, limits, surprises and workarounds) 
 Browser (Next.js client)                              AssemblyAI
 ─────────────────────────────────────────────────     ─────────────────────────────────
 mic → AudioWorklet (resample to 24 kHz PCM16) ──────► Voice Agent API (WebSocket)
-speaker ◄── <audio> ◄── local WebRTC ◄── playback ◄─────  persona voice + events
+speaker ◄── <audio> ◄── local WebRTC ◄── worklet ◄──────  persona voice + events
 engagement model runs after every turn ──session.update / reply.create──►
         │
         └─ session ends → /report/[id]
@@ -62,6 +62,10 @@ engagement model runs after every turn ──session.update / reply.create──
 ```
 
 The server is a handful of route handlers that hold the API key: token minting, analysis start and poll, coach, and fresh recording URLs. Practice history lives in the browser's localStorage, and recordings stay in the AssemblyAI account. There is no database.
+
+### Smooth playback
+
+The Voice Agent API streams the persona's voice as 10 ms chunks of 24 kHz audio. Playing each chunk as its own Web Audio buffer clicked at the joins, heard as crackling on a MacBook, because the browser resamples every buffer on its own. A playback AudioWorklet (`public/worklets/player-processor.js`) puts the chunks into one continuous buffer and resamples them without a break.
 
 ### Talking on a phone speaker
 
@@ -99,6 +103,7 @@ Everything in `scripts/` runs against the real APIs (`node --env-file=.env scrip
 | Script | What it does |
 | --- | --- |
 | `e2e.mjs <plan> [--retake] [--mobile] [--echo]` | Runs the production build in headless Chromium with a fake microphone that speaks text-to-speech lines whenever the app says it's your turn. It exercises the real mic worklet, WebSocket, playback, engagement model and report pipeline, and saves screenshots. Plans: `cafe`, `coworker`, `party`, `networking`, `first-date`, `ask-out` (a warm chat, then the ask), `cold` (one-word answers until the persona walks away) and `stage`. `--retake` also replays a flagged moment; `--mobile` runs the session at phone size; `--echo` plays everything the page outputs back into the mic, like a phone on speaker (the fake mic skips the browser's echo canceller, so this tests the echo guard). |
+| `player-check.mjs` | Checks the playback worklet on a cached agent recording, with no API calls. Voice fed as 10 ms chunks while it plays must come out exactly like one continuous buffer, since any difference at a chunk boundary is a click. It also checks that peaks stay below full scale and that stopping playback fades out. |
 | `ui-checks.mjs` | Fast checks with no voice sessions (no API cost): the ladder, the persona choice, the blocked-microphone message, 404 pages, and no horizontal scroll on phones. |
 | `simulate.mjs` | A scripted user talking to a persona at real-time pace, printing per-turn latency. |
 | `analyze.mjs <session_id>` | Fetches a session's recording and transcribes it with multichannel and disfluencies. |
@@ -125,7 +130,7 @@ lib/metrics.ts        speaking metrics from the multichannel transcript
 lib/coach.ts          coach prompt, tolerant JSON parsing, rule-based fallback
 lib/retake.ts         rebuilding a moment for "Try this moment again"
 lib/server/aai.ts     server-side AssemblyAI calls (the API key never reaches the browser)
-public/worklets/      the AudioWorklet that captures and resamples the mic
+public/worklets/      AudioWorklets: mic capture and resampling, and playback of the agent's voice
 scripts/              test harness
 ```
 

@@ -171,7 +171,7 @@ export class Conversation {
     try {
       // Audio contexts must be created inside the click handler that called start().
       this.player = new Player();
-      await this.player.resume();
+      await this.player.start();
       await this.mic.start();
       this.mic.onChunk = (pcm, rms, at) => this.onMic(pcm, rms, at);
       this.echo.onChange = (echo) => this.set({ echo });

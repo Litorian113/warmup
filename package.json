@@ -13,6 +13,7 @@
     "sim": "node --env-file=.env scripts/simulate.mjs",
     "e2e": "node --env-file=.env scripts/e2e.mjs",
     "llm-access": "node --env-file=.env scripts/llm-access.mjs",
+    "player-check": "node scripts/player-check.mjs",
     "ui-checks": "node scripts/ui-checks.mjs"
   },
   "dependencies": {

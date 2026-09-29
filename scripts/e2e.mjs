@@ -152,6 +152,30 @@ async function main() {
             return connect.call(this, target, ...rest);
           };
         }
+        // The app plays the persona through a WebRTC connection inside the page. Keep that
+        // connection's receive stats: concealed audio is what a listener hears as crackles.
+        const NativePC = window.RTCPeerConnection;
+        if (NativePC) {
+          window.__rtc = { pcs: [], last: {} };
+          window.RTCPeerConnection = class extends NativePC {
+            constructor(...args) {
+              super(...args);
+              window.__rtc.pcs.push(this);
+            }
+          };
+          setInterval(() => {
+            window.__rtc.pcs.forEach((pc, i) => {
+              if (pc.signalingState === "closed") return;
+              pc.getStats()
+                .then((stats) =>
+                  stats.forEach((s) => {
+                    if (s.type === "inbound-rtp" && s.kind === "audio") window.__rtc.last[i] = { ...s };
+                  }),
+                )
+                .catch(() => {});
+            });
+          }, 500);
+        }
         window.__statusLog = [];
         window.__audioLog = [];
         new MutationObserver(() => {
@@ -336,6 +360,16 @@ async function main() {
     await page.screenshot({ path: path.join(OUT, `report-${SCENE}-mobile.png`), fullPage: true });
     log(`ws events: ${JSON.stringify(wsEvents)}`);
     log(`audio route: ${(await page.evaluate(() => window.__audioLog ?? []).catch(() => [])).join(" -> ") || "(not reported)"}${ECHO ? " [simulated speaker echo]" : ""}`);
+    for (const r of Object.values(await page.evaluate(() => window.__rtc?.last ?? {}).catch(() => ({})))) {
+      const rate = r.totalSamplesReceived / Math.max(0.001, r.totalSamplesDuration || 1);
+      const ms = (n) => Math.round((1000 * (n ?? 0)) / (rate || 48000));
+      log(
+        `call audio: ${(r.totalSamplesDuration ?? 0).toFixed(1)}s received, concealed ${ms(r.concealedSamples)} ms in ${r.concealmentEvents ?? 0} events` +
+          ` (${ms(r.concealedSamples - (r.silentConcealedSamples ?? 0))} ms not silent), stretched +${ms(r.insertedSamplesForDeceleration)}/-${ms(r.removedSamplesForAcceleration)} ms,` +
+          ` jitter buffer ${r.jitterBufferEmittedCount ? Math.round((1000 * r.jitterBufferDelay) / r.jitterBufferEmittedCount) : "?"} ms, lost ${r.packetsLost ?? 0}/${r.packetsReceived ?? 0} packets,` +
+          ` ${Math.round((8 * (r.bytesReceived ?? 0)) / Math.max(1, r.totalSamplesDuration ?? 1) / 1000)} kbit/s`,
+      );
+    }
     const statusLog = await page.evaluate(() => window.__statusLog ?? []).catch(() => []);
     await writeFile(path.join(OUT, `timeline-${SCENE}.json`), JSON.stringify({ T0, timeline, statusLog, marks }, null, 1));
   } catch (e) {

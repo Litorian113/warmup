@@ -10,6 +10,7 @@ Findings from building Warmup on AssemblyAI's Voice Agent API, Sessions API, Uni
 | Session recording available | right after the session ends |
 | Transcribing the two-channel recording | 8 to 16 s per minute of audio |
 | LLM Gateway on a free account | one model, 2 requests per minute |
+| Agent audio stream | 10 ms chunks, about 110 ms ahead of real time |
 | Routing the agent's voice as WebRTC call audio | connects in about 0.1 s, adds about 30 ms |
 
 ## Voice Agent API
@@ -37,6 +38,8 @@ Findings from building Warmup on AssemblyAI's Voice Agent API, Sessions API, Uni
 - If echo still gets through, a guard mutes the mic while the persona talks, and the room says so.
 
 We haven't yet recorded which of the two did the job on that phone. (`lib/voice/audio.ts`, `lib/voice/echo.ts`)
+
+**Agent audio arrives in 10 ms chunks, about 110 ms ahead of real time.** Every `reply.audio` event carried exactly 10 ms (240 samples at 24 kHz), 100 a second, and the server keeps roughly 110 ms queued ahead of playback. Scheduling each chunk as its own `AudioBufferSourceNode` in a 44.1 or 48 kHz context clicked at the joins, because the browser resamples each buffer on its own. Rendering a real reply in Chromium, 130 of 372 joins glitched at 44.1 kHz, with spikes up to 0.8 of full scale, and 31 did at 48 kHz. On a MacBook it sounded like crackling. A playback AudioWorklet that resamples the stream continuously gives output identical, sample for sample, to one long buffer. (`public/worklets/player-processor.js`, `scripts/player-check.mjs`)
 
 **The live transcript drops most filler words.** `transcript.user` rarely contained "um" or "uh" even when the audio did. Filler counts come from transcribing the recording with `disfluencies: true` instead.
 
@@ -100,6 +103,8 @@ As a result, any metric calculated per utterance was off. Pauses at the splits w
 ## Browser integration
 
 **The microphone needs HTTPS.** Browsers only allow `getUserMedia` on https or localhost. To test on a phone over Tailscale we serve the production build over HTTPS with a self-signed certificate (`npm run start:https`).
+
+**In-page WebRTC defaults to 32 kbit/s Opus.** For call audio that never leaves the device, the page adds `maxaveragebitrate=96000` to the Opus `fmtp` line in the answer. We measured the target going from 32000 to 96000, and continuous audio from 30 to 97 kbit/s. The in-page connection is otherwise clean: in a 60-second conversation, about 40 ms was concealed (once, while connecting), with no lost packets and a 32 ms jitter buffer.
 
 ## Testing without a human
 
