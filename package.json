@@ -1,0 +1,31 @@
+{
+  "name": "warmup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Practice the conversations you'd rather avoid, with AI people who react like real ones. Built on AssemblyAI's Voice Agent API.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0",
+    "start:https": "node scripts/https-server.mjs",
+    "typecheck": "tsc --noEmit",
+    "sim": "node --env-file=.env scripts/simulate.mjs",
+    "e2e": "node --env-file=.env scripts/e2e.mjs",
+    "llm-access": "node --env-file=.env scripts/llm-access.mjs",
+    "ui-checks": "node scripts/ui-checks.mjs"
+  },
+  "dependencies": {
+    "jsonrepair": "^3.15.0",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "playwright-core": "1.63.0",
+    "typescript": "^5.9"
+  }
+}

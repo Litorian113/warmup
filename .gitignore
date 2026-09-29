@@ -1,0 +1,17 @@
+# secrets
+.env
+.env*.local
+
+# deps & build output
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# local test artifacts (TTS audio, recordings, logs)
+scripts/.cache/
+certs/
+test-results/
+
+.DS_Store
