@@ -1,8 +1,8 @@
 import type { Scene } from "@/lib/scenarios";
 
-export default function GoalList({ scene, done }: { scene: Scene; done: Record<string, boolean> }) {
+export default function GoalList({ scene, done, inline }: { scene: Scene; done: Record<string, boolean>; inline?: boolean }) {
   return (
-    <ul className="goals">
+    <ul className={`goals${inline ? " goals--inline" : ""}`}>
       {scene.goals.map((g) => (
         <li key={g.id} className={`goal${done[g.id] ? " is-done" : ""}`}>
           <span className="goal__mark" aria-hidden="true">

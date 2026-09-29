@@ -29,21 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span className="wordmark__dot" aria-hidden="true" />
               {APP_NAME}
             </Link>
-            <nav className="site-nav" aria-label="Main">
-              <Link href="/#scenes">Scenes</Link>
-              <Link href="/#history">Your practice</Link>
-            </nav>
           </div>
         </header>
         {children}
-        <footer className="site-footer">
-          <div className="wrap site-footer__inner">
-            <p>
-              Voice conversations, recordings and transcripts run on AssemblyAI&apos;s Voice Agent API, Universal-3.5 Pro and LLM Gateway.
-            </p>
-            <p>Your practice history stays in this browser.</p>
-          </div>
-        </footer>
       </body>
     </html>
   );

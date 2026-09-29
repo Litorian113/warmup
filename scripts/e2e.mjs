@@ -328,7 +328,7 @@ async function main() {
     const summary = await page.evaluate(() => ({
       headline: document.querySelector(".report__headline")?.textContent,
       outcome: document.querySelector(".report__outcome")?.textContent,
-      coachSource: document.querySelector("#coach-title + p")?.textContent,
+      coachSource: document.querySelector(".report__credit")?.textContent,
       tiles: [...document.querySelectorAll(".tile")].map((t) => t.innerText.replace(/\n+/g, " | ")),
       goals: [...document.querySelectorAll(".report .goal")].map((g) => `${g.classList.contains("is-done") ? "✓" : "○"} ${g.textContent}`),
     }));
@@ -372,6 +372,9 @@ async function main() {
     }
     const statusLog = await page.evaluate(() => window.__statusLog ?? []).catch(() => []);
     await writeFile(path.join(OUT, `timeline-${SCENE}.json`), JSON.stringify({ T0, timeline, statusLog, marks }, null, 1));
+    // the saved session, so `npm run ui-checks` can render a real report without a new voice session
+    const saved = await page.evaluate(() => localStorage.getItem("warmup.sessions.v1")).catch(() => null);
+    if (saved) await writeFile(path.join(OUT, `record-${SCENE}.json`), JSON.stringify(JSON.parse(saved)[0], null, 1));
   } catch (e) {
     console.error(e.message);
     await globalThis.__diagnose?.();

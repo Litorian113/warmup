@@ -58,6 +58,7 @@ export interface LiveState {
 const FILLER = /\b(um+|uh+|erm|er)\b/gi;
 const VAD_BIAS_MS = 350; // input.speech.started lands a little after speech actually starts
 export const TALK_SECONDS = 90;
+const THINKING_GIVE_UP_MS = 12000; // replies normally start within 5 s
 
 export class Conversation {
   readonly scene: Scene;
@@ -72,6 +73,7 @@ export class Conversation {
   private micMuted = false;
   private t0 = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private thinkingSince: number | null = null;
   private raf = 0;
 
   // turn bookkeeping
@@ -284,7 +286,8 @@ export class Conversation {
       }
       case "input.speech.stopped":
         if (this.state.phase === "talk" && this.muteAgent) this.silenceSince = now;
-        this.set({ speaking: this.state.speaking === "you" ? null : this.state.speaking, thinking: !this.muteAgent || this.unmuteOnNextReply });
+        // A late "stopped" can arrive after the reply has started playing; the reply answers it.
+        if (this.state.speaking === "you") this.set({ speaking: null, thinking: !this.muteAgent || this.unmuteOnNextReply });
         break;
       case "transcript.user.delta":
         this.upsertLine(ev.item_id, "you", ev.text, false, now);
@@ -479,6 +482,13 @@ export class Conversation {
     if (this.state.status !== "live") return;
     const now = this.now();
     const patch: Partial<LiveState> = { elapsed: Math.floor(now) };
+
+    // The agent sometimes lets a turn pass without replying (a cough, a stray noise). Hand the
+    // turn back rather than showing "thinking" forever.
+    if (this.state.thinking && !this.replyLine) {
+      this.thinkingSince ??= performance.now();
+      if (performance.now() - this.thinkingSince > THINKING_GIVE_UP_MS) patch.thinking = false;
+    } else this.thinkingSince = null;
 
     if (this.state.phase === "talk" && this.muteAgent && this.talkStartedAt !== null) {
       const left = Math.max(0, TALK_SECONDS - Math.floor(now - this.talkStartedAt));

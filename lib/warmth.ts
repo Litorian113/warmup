@@ -26,9 +26,3 @@ export function warmthColor(v: number): string {
 }
 
 export const warmthGradient = `linear-gradient(90deg, ${WARMTH_STOPS.map(([p, c]) => `${c} ${p}%`).join(", ")})`;
-
-export function startingTemperature(baseline: number) {
-  if (baseline >= 56) return "Starts friendly";
-  if (baseline >= 45) return "Starts neutral";
-  return "Starts cool";
-}

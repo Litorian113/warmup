@@ -13,38 +13,36 @@ export default function RecentPractice() {
   const [list, setList] = useState<SessionRecord[] | null>(null);
   useEffect(() => setList(listSessions()), []);
 
+  if (!list?.length) return null;
   return (
     <section id="history" className="wrap history" aria-labelledby="history-title">
       <div className="section-head">
         <h2 id="history-title" className="h2">
           Your practice
         </h2>
-        {list && list.length === 0 && <p className="lede">Sessions you finish show up here, with their replay and feedback.</p>}
       </div>
-      {list && list.length > 0 && (
-        <ul className="history__list">
-          {list.slice(0, 8).map((r) => {
-            const scene = sceneById(r.sceneId);
-            return (
-              <li key={r.id}>
-                <Link href={`/report/${r.id}`} className="history__item">
-                  <span className="temp-dot" style={{ background: warmthColor(r.finalWarmth) }} aria-hidden="true" />
-                  <span>
-                    <span className="history__title">
-                      {scene?.title ?? r.sceneId} with {r.personaName}
-                    </span>
-                    <br />
-                    <span className="history__when">{when(r.createdAt)}</span>
+      <ul className="history__list">
+        {list.slice(0, 8).map((r) => {
+          const scene = sceneById(r.sceneId);
+          return (
+            <li key={r.id}>
+              <Link href={`/report/${r.id}`} className="history__item">
+                <span className="temp-dot" style={{ background: warmthColor(r.finalWarmth) }} aria-hidden="true" />
+                <span>
+                  <span className="history__title">
+                    {scene?.title ?? r.sceneId} with {r.personaName}
                   </span>
-                  <span className="history__warmth">
-                    {scene?.kind === "talk" ? "Attention" : "Warmth"} {r.startWarmth} to {r.finalWarmth}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <br />
+                  <span className="history__when">{when(r.createdAt)}</span>
+                </span>
+                <span className="history__warmth">
+                  {scene?.kind === "talk" ? "Attention" : "Warmth"} {r.startWarmth} to {r.finalWarmth}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

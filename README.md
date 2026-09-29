@@ -24,11 +24,11 @@ Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai) (September 2
 - Captions are synced word by word to the voice, and goals tick off as you reach them. Optional hints suggest what to say next.
 
 **Afterwards: the replay**
-- A warmth curve over the conversation, with the moments the coach picked pinned to it.
-- Speaking metrics measured from the recording, word by word: response time, share of talking, questions asked, filler words per minute (um and uh are kept), pace and pauses.
-- Coach notes: what worked, what to try next time, and a line you could have said instead.
-- The full transcript with filler words highlighted. Click any time to hear that moment.
+- A one-line verdict, the goals you reached, and a warmth curve with the moments the coach picked pinned to it.
+- Coach notes: one thing to work on next time, what worked, what to try, and a line you could have said instead.
 - **Try this moment again:** the persona says the exact same line again, remembering everything before it. You answer differently and see how the two attempts compare.
+- Speaking metrics measured from the recording, word by word: response time, share of talking, questions asked, filler words per minute (um and uh are kept), pace and pauses.
+- The full transcript with filler words highlighted, one click away. Click any time to hear that moment.
 
 ## How it uses AssemblyAI
 
@@ -102,9 +102,9 @@ Everything in `scripts/` runs against the real APIs (`node --env-file=.env scrip
 
 | Script | What it does |
 | --- | --- |
-| `e2e.mjs <plan> [--retake] [--mobile] [--echo]` | Runs the production build in headless Chromium with a fake microphone that speaks text-to-speech lines whenever the app says it's your turn. It exercises the real mic worklet, WebSocket, playback, engagement model and report pipeline, and saves screenshots. Plans: `cafe`, `coworker`, `party`, `networking`, `first-date`, `ask-out` (a warm chat, then the ask), `cold` (one-word answers until the persona walks away) and `stage`. `--retake` also replays a flagged moment; `--mobile` runs the session at phone size; `--echo` plays everything the page outputs back into the mic, like a phone on speaker (the fake mic skips the browser's echo canceller, so this tests the echo guard). |
+| `e2e.mjs <plan> [--retake] [--mobile] [--echo]` | Runs the production build in headless Chromium with a fake microphone that speaks text-to-speech lines whenever the app says it's your turn. It exercises the real mic worklet, WebSocket, playback, engagement model and report pipeline, and saves screenshots and the finished session record. Plans: `cafe`, `coworker`, `party`, `networking`, `first-date`, `ask-out` (a warm chat, then the ask), `cold` (one-word answers until the persona walks away) and `stage`. `--retake` also replays a flagged moment; `--mobile` runs the session at phone size; `--echo` plays everything the page outputs back into the mic, like a phone on speaker (the fake mic skips the browser's echo canceller, so this tests the echo guard). |
 | `player-check.mjs` | Checks the playback worklet on a cached agent recording, with no API calls. Voice fed as 10 ms chunks while it plays must come out exactly like one continuous buffer, since any difference at a chunk boundary is a click. It also checks that peaks stay below full scale and that stopping playback fades out. |
-| `ui-checks.mjs` | Fast checks with no voice sessions (no API cost): the ladder, the persona choice, the blocked-microphone message, 404 pages, and no horizontal scroll on phones. |
+| `ui-checks.mjs` | Fast checks with no voice sessions (no API cost): the ladder, the persona choice, the blocked-microphone message, 404 pages, the report's metrics and layout on a saved session, and no horizontal scroll on phones. |
 | `simulate.mjs` | A scripted user talking to a persona at real-time pace, printing per-turn latency. |
 | `analyze.mjs <session_id>` | Fetches a session's recording and transcribes it with multichannel and disfluencies. |
 | `voice-pitch.mjs` | Measures each voice's pitch, used to match voices to persona genders. |

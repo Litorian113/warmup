@@ -81,6 +81,7 @@ try {
   const scenes = await page.locator(".scene").count();
   check("home lists all 7 scenes on the ladder", scenes === 7, `${scenes} scenes`);
   check("home has 5 rungs", (await page.locator(".rung").count()) === 5);
+  check("home leaves out the practice list until there is some", (await page.locator("#history").count()) === 0);
 
   await page.goto(`${BASE}/practice/first-date`, { waitUntil: "networkidle" });
   check("first date offers a choice of two dates", (await page.locator(".choice__opt").count()) === 2);
@@ -119,6 +120,10 @@ try {
   check("pauses where AssemblyAI split an utterance still count", /2\.5 ?sec/.test(pause) && /2 pauses/.test(pause), pause.slice(0, 70));
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("warmup.sessions.v1") ?? "[]")[0]?.analysis);
   check("the rebuilt analysis is saved", saved?.v === 2 && saved.utterances.filter((u) => u.who === "you").length === 3, `v=${saved?.v}`);
+  check("the report folds the full transcript away", await page.evaluate(() => document.querySelector(".script-block")?.open === false));
+  check("the report credits AssemblyAI once, at the end", /Universal-3\.5 Pro/.test((await page.textContent(".report__credit").catch(() => "")) ?? ""));
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  check("home lists a finished session", (await page.locator(".history__item").count()) === 1);
   await page.evaluate(() => localStorage.removeItem("warmup.sessions.v1"));
 
   await page.setViewportSize({ width: 390, height: 844 });

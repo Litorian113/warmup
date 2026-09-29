@@ -10,7 +10,7 @@ import { mmss } from "@/lib/metrics";
 import { planRetake, type RetakePlan } from "@/lib/retake";
 import { sceneById, type Scene } from "@/lib/scenarios";
 import { getSession } from "@/lib/store";
-import { startingTemperature, warmthColor } from "@/lib/warmth";
+import { warmthColor } from "@/lib/warmth";
 
 const noSub = () => () => {};
 const noSnap = () => null;
@@ -111,11 +111,10 @@ function Briefing(props: {
           </h1>
           <p className="lede direction">{scene.setting}</p>
 
-          <div className="brief__block">
-            <h2 className="brief__label">{scene.kind === "talk" ? "Your host" : "Who you're talking to"}</h2>
-            {scene.personas.length > 1 ? (
-              <fieldset className="choice" style={{ border: 0, padding: 0, margin: 0 }}>
-                <legend className="sr-only">Choose who you talk to</legend>
+          {scene.personas.length > 1 ? (
+            <fieldset className="brief__block choice-set">
+              <legend className="brief__label">Who you talk to</legend>
+              <div className="choice">
                 {scene.personas.map((q, i) => (
                   <label key={q.name} className="choice__opt">
                     <input type="radio" name="persona" checked={i === personaIdx} onChange={() => props.setPersonaIdx(i)} />
@@ -125,34 +124,27 @@ function Briefing(props: {
                     </span>
                   </label>
                 ))}
-              </fieldset>
-            ) : (
-              <p>
-                <strong>{p.name}</strong> ({p.pronouns}). {p.intro}
-              </p>
-            )}
-            <p className="small muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="temp-dot" style={{ background: warmthColor(scene.profile.baseline) }} aria-hidden="true" />
-              {startingTemperature(scene.profile.baseline)}.{" "}
-              {scene.kind === "talk"
-                ? "The audience's attention drops during long silences."
-                : `${p.name} warms up when you're curious and cools down when you're not.`}
+              </div>
+            </fieldset>
+          ) : (
+            <p>
+              <strong>{p.name}</strong> ({p.pronouns}). {p.intro}
             </p>
-          </div>
+          )}
 
           <div className="brief__block">
             <h2 className="brief__label">Your goals</h2>
             <GoalList scene={scene} done={{}} />
           </div>
 
-          <div className="brief__block">
-            <h2 className="brief__label">Good to know</h2>
+          <details className="more">
+            <summary>Tips before you start</summary>
             <ul className="tips">
               {scene.tips.map((t) => (
                 <li key={t}>{t}</li>
               ))}
             </ul>
-          </div>
+          </details>
         </div>
 
         <aside className="brief__panel" aria-label="Start">
@@ -160,7 +152,7 @@ function Briefing(props: {
           <p className="muted">
             {scene.kind === "talk"
               ? `Talk for about ${TALK_SECONDS} seconds, then answer two questions. Press "I'm done" when you finish early.`
-              : "Talk the way you would in real life. There's no button to hold: just speak, and pause when you're done."}
+              : "Just talk, and pause when you're done. There's no button to hold."}
           </p>
           {scene.kind === "conversation" && (
             <label className="toggle">
@@ -245,7 +237,6 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   const { scene, persona } = conv;
   const orbRef = useRef<HTMLDivElement>(null);
   const micRef = useRef<HTMLSpanElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
 
   // Audio levels drive the orb and mic dot every frame without re-rendering React.
   useEffect(() => {
@@ -259,10 +250,6 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [conv]);
-
-  useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
-  }, [state.lines]);
 
   const talk = scene.kind === "talk";
   const talkView = talk && state.phase === "talk" && state.talkLeft !== null;
@@ -306,7 +293,7 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
             {mmss(state.elapsed)}
           </span>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="room__actions">
           {!talk && (
             <button className="btn btn--ghost btn--quiet" onClick={() => setHints(!hints)} aria-pressed={hints}>
               {hints ? "Hide hints" : "Show hints"}
@@ -364,6 +351,12 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
                   </p>
                 )}
               </div>
+              {hints && !talk && state.tip && state.speaking !== "them" && (
+                <p className="tip">
+                  <span className="tip__label">Try this</span>
+                  {state.tip}
+                </p>
+              )}
             </>
           )}
           <p className="status-line" role="status">
@@ -378,63 +371,27 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
           </p>
         </div>
 
-        <aside className="side" aria-label="How it's going">
-          <div className="panel">
-            <WarmthMeter value={state.warmth} label={meterLabel} note={talk ? undefined : state.mood.label.replace(/^is |^seems /, "")} />
-            {talk && state.phase === "talk" && (
-              <p className="small muted">Attention dips during silences longer than 3 seconds and recovers while you speak.</p>
-            )}
-            <div className="feed" aria-live="polite" hidden={!state.feed}>
-              {state.feed?.signals.map((s, i) => (
-                <span key={`${state.feed!.id}-${i}`} className={`chip ${s.delta > 0 ? "chip--up" : "chip--down"}`}>
-                  <span className="chip__delta">{s.delta > 0 ? `+${s.delta}` : `−${-s.delta}`}</span>
-                  {s.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {hints && !talk && state.tip && state.speaking !== "them" && (
-            <div className="panel">
-              <p className="tip">
-                <span className="tip__label">Try this</span>
-                {state.tip}
-              </p>
-            </div>
+        <aside className="side panel" aria-label="How it's going">
+          <WarmthMeter value={state.warmth} label={meterLabel} note={talk ? undefined : state.mood.label.replace(/^is |^seems /, "")} />
+          {talk && state.phase === "talk" && (
+            <p className="small muted">Attention dips during silences longer than 3 seconds and recovers while you speak.</p>
           )}
-
-          <div className="panel">
+          <div className="feed" aria-live="polite" hidden={!state.feed}>
+            {state.feed?.signals.map((s, i) => (
+              <span key={`${state.feed!.id}-${i}`} className={`chip ${s.delta > 0 ? "chip--up" : "chip--down"}`}>
+                <span className="chip__delta">{s.delta > 0 ? `+${s.delta}` : `−${-s.delta}`}</span>
+                {s.label}
+              </span>
+            ))}
+          </div>
+          <div className="side__goals">
             <h2 className="panel__title">Goals</h2>
             <GoalList scene={scene} done={state.goals} />
-          </div>
-
-          <div className="panel">
-            <h2 className="panel__title">Transcript</h2>
-            <div className="log" ref={logRef}>
-              {state.lines.length === 0 && <p className="muted small">The conversation shows up here as you talk.</p>}
-              {mergeLines(state.lines).map((l) => (
-                <p key={l.id} className="log__line">
-                  <b>{l.who === "you" ? "You" : persona.name}:</b> {l.text}
-                  {l.interrupted ? " (cut off)" : ""}
-                </p>
-              ))}
-            </div>
           </div>
         </aside>
       </div>
     </div>
   );
-}
-
-/** Joins consecutive fragments from the same speaker into one transcript line. */
-function mergeLines(lines: LiveState["lines"]) {
-  const out: LiveState["lines"] = [];
-  for (const l of lines) {
-    const prev = out[out.length - 1];
-    if (prev && prev.who === l.who && l.who === "you") out[out.length - 1] = { ...prev, text: `${prev.text} ${l.text}`, final: l.final };
-    else out.push(l);
-  }
-  return out;
 }
 
 function Countdown({ left }: { left: number }) {

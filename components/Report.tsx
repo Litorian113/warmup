@@ -127,7 +127,6 @@ export default function Report({ id }: { id: string }) {
   const coach = rec.coach;
   const goalsDone = { ...rec.goals };
   if (!talk) for (const g of coach?.goals ?? []) if (g.done) goalsDone[g.id] = true;
-  const evidence = (coach?.goals ?? []).filter((g) => g.evidence && g.done === !!goalsDone[g.id]);
   const when = new Date(rec.createdAt).toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
 
   return (
@@ -149,6 +148,7 @@ export default function Report({ id }: { id: string }) {
           {outcomeText(rec.outcome, persona, scene.kind)}{" "}
           {talk ? "Audience attention" : `${persona.name}'s warmth`} went from {rec.startWarmth} to {rec.finalWarmth}.
         </p>
+        <GoalList scene={scene} done={goalsDone} inline />
         <div className="report__actions">
           <Link className="btn" href={`/practice/${scene.id}`}>
             Practice this again
@@ -166,44 +166,11 @@ export default function Report({ id }: { id: string }) {
           <h2 id="curve-title" className="h2">
             {talk ? "How the room's attention moved" : `How warm ${persona.name} got`}
           </h2>
-          <p className="muted">
-            {talk
-              ? "Attention sags during long silences and rises with clear answers. Pins mark moments the coach picked out."
-              : "Each dot is one of your turns. Hover or tab through them to see what moved it. Pins mark moments the coach picked out."}
-          </p>
+          <p className="muted">{talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}</p>
         </div>
         <div className="card">
           <WarmthChart points={rec.points} start={rec.startWarmth} duration={rec.durationSec} moments={coach?.moments ?? []} talk={talk} onSeek={seek} />
         </div>
-      </section>
-
-      <section className="block" aria-labelledby="sound-title">
-        <div className="block__head">
-          <h2 id="sound-title" className="h2">
-            How you sounded
-          </h2>
-          <p className="muted">Measured from the recording, word by word, including every um and uh.</p>
-        </div>
-        {rec.analysis ? (
-          <div className="tiles">
-            {tilesFor(rec.analysis.metrics, rec, talk).map((t) => (
-              <Tile key={t.label} {...t} />
-            ))}
-          </div>
-        ) : phase === "transcribing" ? (
-          <>
-            <p className="progress-note" role="status">
-              <span className="spinner" /> Transcribing your recording. This takes about 10 to 30 seconds.
-            </p>
-            <div className="tiles" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="skeleton" style={{ height: 132 }} />
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="notice">{analysisError ?? "There's no recording for this session, so speaking metrics aren't available."}</p>
-        )}
       </section>
 
       <section className="block" aria-labelledby="coach-title">
@@ -211,13 +178,6 @@ export default function Report({ id }: { id: string }) {
           <h2 id="coach-title" className="h2">
             Coach notes
           </h2>
-          <p className="muted small">
-            {coach?.source === "llm"
-              ? `Written by ${coach.model} through AssemblyAI's LLM Gateway, from your transcript and metrics.`
-              : coach
-                ? "Quick notes from your warmth signals and metrics."
-                : "Reading your transcript…"}
-          </p>
           {coachNotice && (
             <p className="progress-note small" role="status">
               {phase === "coaching" && <span className="spinner" />} {coachNotice}
@@ -226,60 +186,46 @@ export default function Report({ id }: { id: string }) {
         </div>
         {coach ? (
           <>
-            <div className="notes">
-              {coach.strengths.map((s, i) => (
-                <article key={`s${i}`} className="note">
-                  <StatusLabel status="good" text="What worked" />
-                  <h3 className="note__title">{s.title}</h3>
-                  <p>{s.detail}</p>
-                </article>
-              ))}
-              {coach.improvements.map((s, i) => (
-                <article key={`i${i}`} className="note">
-                  <StatusLabel status="meh" text="Try next time" />
-                  <h3 className="note__title">{s.title}</h3>
-                  <p>{s.detail}</p>
-                  {s.tryInstead && (
-                    <p className="note__try">
-                      <span className="note__try-label">You could say</span>
-                      {s.tryInstead}
-                    </p>
-                  )}
-                </article>
-              ))}
-            </div>
             {coach.nextStep && (
               <p className="next-step">
                 <b>Your one thing for next time</b>
                 {coach.nextStep}
               </p>
             )}
+            <div className="card notes">
+              {coach.strengths.length > 0 && (
+                <div className="notes__col">
+                  <StatusLabel status="good" text="What worked" />
+                  {coach.strengths.map((s, i) => (
+                    <article key={i} className="note">
+                      <h3 className="note__title">{s.title}</h3>
+                      <p>{s.detail}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+              {coach.improvements.length > 0 && (
+                <div className="notes__col">
+                  <StatusLabel status="meh" text="Try next time" />
+                  {coach.improvements.map((s, i) => (
+                    <article key={i} className="note">
+                      <h3 className="note__title">{s.title}</h3>
+                      <p>{s.detail}</p>
+                      {s.tryInstead && (
+                        <p className="note__try">
+                          <span className="note__try-label">You could say</span>
+                          {s.tryInstead}
+                        </p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         ) : (
-          <div className="notes" aria-hidden="true">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="skeleton" style={{ height: 150 }} />
-            ))}
-          </div>
+          <div className="skeleton" style={{ height: 240 }} aria-label="Reading your transcript" />
         )}
-      </section>
-
-      <section className="block" aria-labelledby="goals-title">
-        <h2 id="goals-title" className="h2">
-          Goals
-        </h2>
-        <div className="card">
-          <GoalList scene={scene} done={goalsDone} />
-          {evidence.length > 0 && (
-            <ul className="tips small" style={{ marginTop: 14 }}>
-              {evidence.map((g) => (
-                  <li key={g.id}>
-                    {scene.goals.find((x) => x.id === g.id)?.label ?? g.id}: {g.evidence}
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
       </section>
 
       {coach && coach.moments.length > 0 && (
@@ -308,19 +254,44 @@ export default function Report({ id }: { id: string }) {
         </section>
       )}
 
-      <section className="block" aria-labelledby="script-title">
-        <div className="block__head">
-          <h2 id="script-title" className="h2">
-            The conversation
-          </h2>
-          <p className="muted">
-            {rec.analysis ? "Filler words are highlighted. Click a time to hear that moment." : "Live transcript from the session."}
-          </p>
-        </div>
+      <section className="block" aria-labelledby="sound-title">
+        <h2 id="sound-title" className="h2">
+          How you sounded
+        </h2>
+        {rec.analysis ? (
+          <div className="tiles">
+            {tilesFor(rec.analysis.metrics, rec, talk).map((t) => (
+              <Tile key={t.label} {...t} />
+            ))}
+          </div>
+        ) : phase === "transcribing" ? (
+          <>
+            <p className="progress-note" role="status">
+              <span className="spinner" /> Transcribing your recording. This takes about 10 to 30 seconds.
+            </p>
+            <div className="skeleton" style={{ height: 280 }} aria-hidden="true" />
+          </>
+        ) : (
+          <p className="notice">{analysisError ?? "There's no recording for this session, so speaking metrics aren't available."}</p>
+        )}
+      </section>
+
+      <details className="script-block">
+        <summary>
+          <h2 className="h2">The conversation</h2>
+          <span className="muted">{rec.analysis ? "Every word, with filler words highlighted." : "Live transcript from the session."}</span>
+        </summary>
         <div className="card">
           <Script rec={rec} name={persona.name} onSeek={audioUrl ? seek : undefined} />
         </div>
-      </section>
+      </details>
+
+      {(rec.analysis || coach?.source === "llm") && (
+        <p className="report__credit small muted">
+          {rec.analysis && "Speaking metrics come from transcribing the recording with AssemblyAI's Universal-3.5 Pro. "}
+          {coach?.source === "llm" && `Coach notes are written by ${coach.model} through AssemblyAI's LLM Gateway.`}
+        </p>
+      )}
 
       {audioUrl && (
         <div className="player">
