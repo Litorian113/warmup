@@ -2,6 +2,7 @@ import { errorResponse, HttpError, recordingUrl, submitTranscript } from "@/lib/
 import { sceneById } from "@/lib/scenarios";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // waits up to 15 s for the session recording
 
 // Starts the post-session transcription of the stereo recording (left = user, right = persona).
 export async function POST(req: Request) {

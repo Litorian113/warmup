@@ -3,6 +3,7 @@ import { chat, COACH_MODEL, errorResponse, HttpError } from "@/lib/server/aai";
 import { sceneById } from "@/lib/scenarios";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // waits out a short LLM Gateway rate limit, then calls the model
 
 // Written feedback from an LLM via AssemblyAI's LLM Gateway (model set by COACH_MODEL).
 export async function POST(req: Request) {
