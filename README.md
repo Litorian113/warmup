@@ -44,6 +44,8 @@ Built for the [AssemblyAI Voice Agent Hackathon](https://lablab.ai) (September 2
 
 Text-to-speech for the test harness also comes from the Voice Agent API: a session's `greeting` is spoken verbatim, so the scripts use it to voice the "user" side.
 
+What we learned along the way (measurements, limits, surprises and workarounds) is in [findings.md](findings.md).
+
 ## Architecture
 
 ```
