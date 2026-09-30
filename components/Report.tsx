@@ -51,6 +51,7 @@ export default function Report({ id }: { id: string }) {
         if (res.retryAfter && res.retryAfter <= 90) {
           setCoachNotice(`The AI coach is busy, so these are quick notes for now. Detailed notes load in about ${res.retryAfter} seconds.`);
           retry = setTimeout(() => void coach(r), res.retryAfter * 1000 + 800);
+          return; // still coaching: the detailed notes are on their way
         } else {
           setCoachNotice(`These are quick notes. ${res.error ?? ""}`.trim());
         }
@@ -167,6 +168,9 @@ export default function Report({ id }: { id: string }) {
   const guide = GUIDES[scene.id];
   const used = guide ? usedTips(guide, scene, yours, goalsDone) : undefined;
   const tiles = rec.analysis ? tilesFor(rec.analysis.metrics, rec, talk) : null;
+  // What's still on its way. The coach waits for the transcript, so say which one we're waiting for.
+  const transcribing = !rec.analysis && !analysisError && !!rec.sessionId && rec.durationSec > 3;
+  const writing = transcribing ? "Your feedback is written once the recording is transcribed, in about half a minute." : "The coach is writing your notes. This takes a few seconds.";
   const when = new Date(rec.createdAt).toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
 
   return (
@@ -187,7 +191,10 @@ export default function Report({ id }: { id: string }) {
           {coach ? (
             <h1 className="report__headline">{coach.headline}</h1>
           ) : (
-            <div className="skeleton" style={{ height: 96, maxWidth: 720 }} aria-label="Writing your feedback" />
+            <div className="report__pending">
+              <div className="skeleton" style={{ height: 96, maxWidth: 720 }} aria-hidden="true" />
+              <Loading>{writing}</Loading>
+            </div>
           )}
           <p className="report__outcome">
             {outcomeText(rec.outcome, persona, scene.kind)} {talk ? "Audience attention" : `${persona.name}'s interest`} went from{" "}
@@ -259,9 +266,9 @@ export default function Report({ id }: { id: string }) {
             <h2 id="coach-title" className="h2">
               Coach notes
             </h2>
-            {coachNotice && (
+            {coach && coachNotice && (
               <p className="progress-note small" role="status">
-                {phase === "coaching" && <span className="spinner" />} {coachNotice}
+                {phase === "coaching" && <span className="spinner" aria-hidden="true" />} {coachNotice}
               </p>
             )}
           </div>
@@ -324,11 +331,25 @@ export default function Report({ id }: { id: string }) {
               </div>
             </>
           ) : (
-            <div className="skeleton" style={{ height: 240 }} aria-label="Reading your transcript" />
+            <>
+              <Loading>{writing}</Loading>
+              <div className="skeleton" style={{ height: 240 }} aria-hidden="true" />
+            </>
           )}
         </section>
 
         {guide && <SceneGuide guide={guide} used={used} title="Try these next time" />}
+
+        {/* the moments come with the coach's notes; until then, hold their place */}
+        {!coach && (
+          <section className="block" aria-labelledby="moments-title" aria-busy="true">
+            <h2 id="moments-title" className="h2">
+              Moments to replay
+            </h2>
+            <Loading>The coach is picking the moments worth another try.</Loading>
+            <div className="skeleton" style={{ height: 300 }} aria-hidden="true" />
+          </section>
+        )}
 
         {coach && coach.moments.length > 0 && (
           <section className="block" aria-labelledby="moments-title">
@@ -376,11 +397,9 @@ export default function Report({ id }: { id: string }) {
                   <Tile key={t.label} {...t} />
                 ))}
               </div>
-            ) : phase === "transcribing" ? (
+            ) : transcribing ? (
               <>
-                <p className="progress-note" role="status">
-                  <span className="spinner" /> Transcribing your recording. This takes about 10 to 30 seconds.
-                </p>
+                <Loading>Transcribing your recording. This takes about 10 to 30 seconds.</Loading>
                 <div className="skeleton" style={{ height: 280 }} aria-hidden="true" />
               </>
             ) : (
@@ -657,6 +676,16 @@ function qaTile(rec: SessionRecord): TileProps {
       avg === null ? "No answers recorded" : avg < 8 ? "Very brief" : avg < 15 ? "A bit short" : avg > 45 ? "Long-winded" : "Well sized",
     note: "Good answers take 15 to 45 seconds: answer, give a reason, stop.",
   };
+}
+
+/** A part of the report that's still on its way: a spinner and what's coming. */
+function Loading({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="progress-note" role="status">
+      <span className="spinner" aria-hidden="true" />
+      {children}
+    </p>
+  );
 }
 
 function StatusLabel({ status, text }: { status: Status; text: string }) {

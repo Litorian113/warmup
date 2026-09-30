@@ -2603,6 +2603,14 @@ body:has(.home) .site-footer {
   grid-row: 4;
 }
 
+/* where the verdict goes while it's being written */
+.report__pending {
+  grid-row: 3;
+  align-self: end;
+  display: grid;
+  gap: 14px;
+}
+
 .report__goals {
   grid-column: 2;
   grid-row: 3 / span 2;
