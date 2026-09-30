@@ -86,7 +86,9 @@ try {
   const scenes = await page.locator(".scene").count();
   check("home lists all 7 scenes on the ladder", scenes === 7, `${scenes} scenes`);
   check("home has 5 rungs", (await page.locator(".rung").count()) === 5);
-  check("home leaves out the practice list until there is some", (await page.locator("#history").count()) === 0);
+  const examples = await page.locator(".history__item.is-example").evaluateAll((els) => els.map((a) => a.getAttribute("href")));
+  check("home shows example rounds until there are real ones", examples.length === 4 && examples.every((h) => h?.startsWith("/practice/")), examples.join(" "));
+  check("example rounds earn no badges", (await page.evaluate(() => localStorage.getItem("warmup.badges.v1"))) === null && (await page.locator(".badge.is-locked").count()) > 0);
 
   await page.goto(`${BASE}/practice/first-date`, { waitUntil: "networkidle" });
   check("first date offers a choice of two dates", (await page.locator(".choice__opt").count()) === 2);
@@ -159,7 +161,7 @@ try {
   check("reached goals don't mark every tip as used", openTips > 0 && new RegExp(`The ${openTips} marked ones`).test(guide), guide.slice(0, 70));
   await page.evaluate((rec) => localStorage.setItem("warmup.sessions.v1", JSON.stringify([rec])), seededTalk());
   await page.goto(BASE, { waitUntil: "networkidle" });
-  check("home lists a finished session", (await page.locator(".history__item").count()) === 1);
+  check("home lists a finished session, and no examples", (await page.locator(".history__item").count()) === 1 && (await page.locator(".is-example").count()) === 0);
   await page.evaluate(() => localStorage.removeItem("warmup.sessions.v1"));
 
   await page.setViewportSize({ width: 390, height: 844 });

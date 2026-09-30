@@ -16,16 +16,29 @@ const when = (ts: number) =>
 
 const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "±0");
 
+type Row = Pick<SessionRecord, "id" | "sceneId" | "personaName" | "createdAt" | "durationSec" | "startWarmth" | "finalWarmth">;
+
+/** Shown until the first real session, so a new visitor sees what this list will hold. Never saved, and never
+ *  counted towards badges. Each starts where the scene starts and links to the scene, not to a replay. */
+const EXAMPLES: Row[] = [
+  { sceneId: "cafe", personaName: "Jess", durationSec: 134, finalWarmth: 74 },
+  { sceneId: "party", personaName: "Sam", durationSec: 221, finalWarmth: 66 },
+  { sceneId: "coworker", personaName: "Marcus", durationSec: 186, finalWarmth: 49 },
+  { sceneId: "stage", personaName: "Priya", durationSec: 152, finalWarmth: 71 },
+].map((e) => ({ ...e, id: `example-${e.sceneId}`, createdAt: 0, startWarmth: sceneById(e.sceneId)?.profile.baseline ?? 50 }));
+
 export default function RecentPractice() {
   const [list, setList] = useState<SessionRecord[] | null>(null);
   const [filter, setFilter] = useState("all");
   const [all, setAll] = useState(false);
   useEffect(() => setList(listSessions()), []);
 
-  if (!list?.length) return null;
-  const practiced = SCENES.filter((s) => list.some((r) => r.sceneId === s.id));
-  const best = Math.max(...list.map((r) => r.finalWarmth - r.startWarmth));
-  const shownList = list.filter((r) => filter === "all" || r.sceneId === filter);
+  if (!list) return null;
+  const example = !list.length;
+  const rows: Row[] = example ? EXAMPLES : list;
+  const practiced = SCENES.filter((s) => rows.some((r) => r.sceneId === s.id));
+  const best = Math.max(...rows.map((r) => r.finalWarmth - r.startWarmth));
+  const shownList = rows.filter((r) => filter === "all" || r.sceneId === filter);
   const shown = all ? shownList : shownList.slice(0, FIRST);
 
   return (
@@ -34,11 +47,15 @@ export default function RecentPractice() {
         <h2 id="history-title" className="display history__heading">
           Your practice
         </h2>
-        <p className="lede">Every conversation you&rsquo;ve had, with its replay. Open one to see what worked, or try a moment again.</p>
+        <p className="lede">
+          {example
+            ? "Your conversations will show up here, each with a replay of what worked. Until you’ve had one, these examples show what to expect."
+            : "Every conversation you’ve had, with its replay. Open one to see what worked, or try a moment again."}
+        </p>
         <dl className="history__stats">
           <div>
             <dt>Sessions</dt>
-            <dd>{list.length}</dd>
+            <dd>{rows.length}</dd>
           </div>
           <div>
             <dt>Scenes tried</dt>
@@ -58,7 +75,7 @@ export default function RecentPractice() {
       </div>
 
       <div className="history__main">
-        {practiced.length > 1 && (
+        {!example && practiced.length > 1 && (
           <label className="history__filter">
             <span className="sr-only">Show sessions from</span>
             <select
@@ -85,7 +102,7 @@ export default function RecentPractice() {
             const tone = delta >= 3 ? "up" : delta <= -3 ? "down" : "flat";
             return (
               <li key={r.id}>
-                <Link href={`/report/${r.id}`} className="history__item">
+                <Link href={example ? `/practice/${r.sceneId}` : `/report/${r.id}`} className={`history__item${example ? " is-example" : ""}`}>
                   <span className="history__tile" aria-hidden="true">
                     {scene && <Emoji code={scene.emoji} size={52} />}
                   </span>
@@ -94,7 +111,7 @@ export default function RecentPractice() {
                       {scene?.title ?? r.sceneId} with {r.personaName}
                     </span>
                     <span className="history__when">
-                      {when(r.createdAt)} · {mmss(r.durationSec)}
+                      {example ? "Example" : when(r.createdAt)} · {mmss(r.durationSec)}
                     </span>
                   </span>
                   <span className="history__result">
@@ -103,7 +120,7 @@ export default function RecentPractice() {
                       {scene?.kind === "talk" ? "Attention" : "Interest"} {r.startWarmth} → {r.finalWarmth}
                       <span className="sr-only"> ({signed(delta)})</span>
                     </span>
-                    <span className="history__open">View replay</span>
+                    <span className="history__open">{example ? "Try this scene" : "View replay"}</span>
                   </span>
                   <svg className="history__chev" viewBox="0 0 12 20" aria-hidden="true">
                     <path d="M3 3 L9 10 L3 17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
