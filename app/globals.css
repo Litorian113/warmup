@@ -32,6 +32,7 @@
   --meh-pill: #f9edd3;
   --bad-bg: #fff5f7;
   --bad-pill: #fbe3e8;
+  --ground: #fef5ec;
   --focus: #2f5fd0;
   --heat: linear-gradient(90deg, #6f9bd1 0%, #a99fd3 40%, #ffb547 66%, #f25c7a 100%);
   --max: 1120px;
@@ -485,59 +486,210 @@ body:has(.room) .site-header {
   margin-bottom: 36px;
 }
 
-.ladder {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
-  align-items: start;
+/* ---------- home: the ladder as pastel steps ---------- */
+
+.home {
+  position: relative;
+  overflow: clip;
+  background: linear-gradient(180deg, var(--paper) 0%, #f5f2ee 35%, var(--ground) 65%);
 }
 
-.rung {
+.decor {
+  display: block;
+  pointer-events: none;
+}
+
+.decor--cloud {
+  position: absolute;
+  z-index: 0;
+  opacity: 0.85;
+}
+
+.decor--cloud-a {
+  top: 24px;
+  right: 4%;
+  width: clamp(140px, 16vw, 230px);
+}
+
+.decor--cloud-b {
+  top: 520px;
+  left: -50px;
+  width: clamp(120px, 13vw, 190px);
+  opacity: 0.6;
+}
+
+.decor--cloud-c {
+  top: 12px;
+  left: 50%;
+  width: clamp(150px, 17vw, 250px);
+  opacity: 0.7;
+}
+
+.hero {
+  position: relative;
+  z-index: 1;
+}
+
+.scenes {
+  position: relative;
+  padding-top: 24px;
+}
+
+.scenes > .wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.scenes__title {
+  font-size: clamp(2.6rem, 5vw, 4.2rem);
+}
+
+/* the title and lede sit beside the high steps, like a hillside */
+.scenes .section-head {
+  position: relative;
+  z-index: 2;
+  margin-bottom: -84px;
+}
+
+.ladder {
+  --step: 3.4rem;
+  list-style: none;
+  padding: 130px 0 0;
   display: grid;
-  gap: 12px;
-  margin-top: calc((5 - var(--lvl)) * 2.6rem);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+/* Each step rises one --step above the last. The lower step sweeps up into the next one in its
+   own tint (a 24px concave fillet, ::before), meeting the higher step's rounded corner in one
+   soft S. Below that, the two tints blend across the seam (::after) instead of a hard edge, and
+   every tint fades out towards the hills. */
+.rung {
+  --wash: linear-gradient(180deg, var(--tint) 0%, color-mix(in srgb, var(--tint) 70%, transparent) 60%, transparent 100%);
+  --fade: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.7) 60%, transparent 100%);
+  position: relative;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  margin-top: calc((5 - var(--lvl)) * var(--step));
+  padding: 26px 14px 72px;
+  border-radius: 26px 0 0 0;
+  /* The wash leaves 14px free at each seam for the blend (::after), so the two never stack.
+     Only the strip beside the rise, above the lower step, keeps a solid tint: the wall. */
+  background:
+    linear-gradient(var(--tint), var(--tint)) left top / 14px calc(var(--step) + 2px) no-repeat,
+    var(--wash) 14px 0 / calc(100% - 28px) 100% no-repeat;
+}
+
+.rung:first-child {
+  background: var(--wash) 0 0 / calc(100% - 14px) 100% no-repeat;
+}
+
+.rung:last-child {
+  background:
+    linear-gradient(var(--tint), var(--tint)) left top / 14px calc(var(--step) + 2px) no-repeat,
+    var(--wash) 14px 0 / calc(100% - 14px) 100% no-repeat;
+}
+
+.rung > * {
+  position: relative;
+  z-index: 1;
+}
+
+.rung:first-child {
+  border-top-left-radius: 44px;
+}
+
+.rung:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -24px;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at 0 0, transparent 23.5px, var(--tint) 24px);
+}
+
+.rung + .rung::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: -14px;
+  width: 28px;
+  top: var(--step);
+  bottom: 0;
+  background: linear-gradient(90deg, var(--prev), var(--tint));
+  -webkit-mask-image: var(--fade);
+  mask-image: var(--fade);
+}
+
+.rung__prop {
+  position: absolute;
+  bottom: calc(100% - 12px);
+  width: 100px;
+  height: auto;
+}
+
+.rung__prop--1 {
+  left: 34%;
+  width: 104px;
+}
+
+.rung__prop--2 {
+  left: 38%;
+  width: 92px;
+}
+
+.rung__prop--3 {
+  left: 36%;
+  width: 112px;
+}
+
+.rung__prop--4 {
+  left: 16%;
+  width: 86px;
+}
+
+.rung__prop--5 {
+  left: 22%;
+  width: 150px;
+  bottom: calc(100% - 4px);
 }
 
 .rung__head {
-  border-top: 3px solid var(--ink);
-  padding-top: 10px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 10px;
+  display: flex;
   align-items: baseline;
+  gap: 10px;
+  padding: 0 4px;
 }
 
 .rung__num {
   --c: 1;
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 800;
   line-height: 1;
 }
 
 .rung__name {
   font-weight: 700;
+  font-size: 1.05rem;
   line-height: 1.2;
 }
 
 .scene {
   display: grid;
   gap: 8px;
-  padding: 16px 16px 14px;
-  border-radius: var(--r-m);
+  padding: 18px 18px 16px;
+  border-radius: 20px;
   background: var(--card);
-  border: 1px solid var(--rule);
   text-decoration: none;
-  transition: border-color 0.15s;
+  box-shadow: 0 12px 30px -20px rgba(50, 60, 90, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .scene:hover {
-  border-color: var(--ink-3);
-}
-
-.scene__emoji {
-  margin-bottom: 2px;
+  transform: translateY(-3px);
+  box-shadow: 0 18px 36px -20px rgba(50, 60, 90, 0.55);
 }
 
 .scene__title {
@@ -550,7 +702,36 @@ body:has(.room) .site-header {
 .scene__who {
   font-size: 0.9rem;
   color: var(--ink-2);
-  line-height: 1.35;
+  line-height: 1.4;
+}
+
+/* The divider closes the ladder: hills and plants on a transparent top, ending in a solid ground
+   (--ground) that the rest of the page continues. Above its lowest valley, 20% of its width is
+   transparent; it's pulled up by a bit less than that, behind the fading steps. */
+.divider {
+  position: relative;
+  z-index: 0; /* behind the steps and cards (the ladder sits at z-index 1) */
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: calc(-20% + 130px);
+  pointer-events: none;
+}
+
+.ground {
+  display: flow-root; /* keeps the history's top margin inside the ground color */
+  background: var(--ground);
+  padding-bottom: 8px;
+}
+
+.ground .history {
+  margin-top: 16px;
+}
+
+body:has(.home) .site-footer {
+  margin-top: 0;
+  border-top: 0;
+  background: var(--ground);
 }
 
 .temp-dot {
@@ -2181,19 +2362,56 @@ body:has(.room) .site-header {
   .brief--simple .brief__panel {
     position: static;
   }
+  .scenes .section-head {
+    margin-bottom: 16px;
+  }
   .ladder {
     grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
+    gap: 44px;
+    padding-top: 40px;
   }
   .rung {
     margin-top: 0;
+    padding-bottom: 32px;
+    border-radius: 32px 32px 0 0;
   }
+  .rung:first-child,
+  .rung:last-child {
+    border-radius: 32px 32px 0 0;
+  }
+  .rung:not(:last-child)::before,
+  .rung + .rung::after {
+    display: none;
+  }
+  .rung,
+  .rung:first-child,
+  .rung:last-child {
+    background: var(--wash);
+  }
+  .rung__prop,
+  .rung__prop--1,
+  .rung__prop--2,
+  .rung__prop--3,
+  .rung__prop--4 {
+    left: auto;
+    right: 18px;
+    width: 70px;
+  }
+  .rung__prop--5 {
+    left: auto;
+    right: 6px;
+    width: 104px;
+  }
+
   .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
+  .divider {
+    margin-top: calc(-20% + 56px);
+  }
   .trait {
     border-right: 0;
     margin-right: 16px;
