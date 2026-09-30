@@ -23,9 +23,11 @@ export default function SceneGuide({ guide, used, title = "How to handle this on
           {title}
         </h2>
         <p className="muted">
-          {used
-            ? `You used ${cards.length - open} of these ${cards.length} moves. The ${open} marked ones are worth trying on your next go.`
-            : "Ways in, through and out of this conversation, each with a line to try."}{" "}
+          {!used
+            ? "Ways in, through and out of this conversation, each with a line to try."
+            : open === 0
+              ? `You used all ${cards.length} of these moves.`
+              : `You used ${cards.length - open} of these ${cards.length} moves. ${open === 1 ? "The marked one is" : `The ${open} marked ones are`} worth trying on your next go.`}{" "}
           Scroll sideways for more.
         </p>
       </div>

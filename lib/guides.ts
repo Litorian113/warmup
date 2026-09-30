@@ -1,7 +1,7 @@
 // Scene guides: good ways into, through and out of each conversation, with a line to try.
 // Written per scene against the persona's bio and the engagement rules in lib/engagement.ts, so
 // the example lines score the way the tips promise. Icons are OpenMoji code points (public/emoji/).
-import { contentWords, words } from "./engagement";
+import { contentWords } from "./engagement";
 import type { Scene } from "./scenarios";
 
 export interface GuideTip {
@@ -509,8 +509,7 @@ function reachesDoneGoal(line: string, scene: Scene, done: Record<string, boolea
     if (!done[g.id]) return false;
     const c = g.check;
     if (c.kind === "regex") return c.who === "you" && c.re.test(line);
-    if (c.kind === "words") return c.who === "you" && words(line).length >= c.min && (!c.re || c.re.test(line));
-    return false; // questions, follow-ups and turn counts fit almost any line, so they don't decide
+    return false; // word counts, questions, follow-ups and turn counts fit almost any line, so they don't decide
   });
 }
 

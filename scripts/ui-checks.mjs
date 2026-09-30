@@ -130,6 +130,34 @@ try {
   check("a turn plays from where you started it, not from when it was scored", turnAt === "1:11", turnAt);
   check("the report folds the full transcript away", await page.evaluate(() => document.querySelector(".script-block")?.open === false));
   check("the report credits AssemblyAI once, at the end", /Universal-3\.5 Pro/.test((await page.textContent(".report__credit").catch(() => "")) ?? ""));
+  // A café visit that reached every goal. "Answer with more than a few words" is a word count,
+  // which any tip line meets, so it must not mark the scene's tips as used.
+  const cafe = {
+    ...seededTalk(),
+    id: "sseededcafe",
+    sceneId: "cafe",
+    personaName: "Jess",
+    durationSec: 40,
+    lines: [
+      { who: "them", text: "Hi there, what can I get you?", t: 1 },
+      { who: "you", text: "Hi, can I get a latte, please?", t: 4 },
+      { who: "them", text: "Sure. Busy day ahead?", t: 8 },
+      { who: "you", text: "Yes, I have a job interview this afternoon, so I really need the caffeine.", t: 11 },
+      { who: "you", text: "Do you like working here?", t: 20 },
+    ],
+    points: [],
+    goals: { order: true, answer: true, ask: true },
+    analysis: undefined,
+    topic: undefined,
+    talkSeconds: undefined,
+    qaStartedAt: undefined,
+  };
+  await page.evaluate((rec) => localStorage.setItem("warmup.sessions.v1", JSON.stringify([rec])), cafe);
+  await page.goto(`${BASE}/report/${cafe.id}`, { waitUntil: "networkidle" });
+  const guide = ((await page.textContent(".guide .block__head p").catch(() => "")) ?? "").replace(/\s+/g, " ");
+  const openTips = await page.locator(".guide__mark--open").count();
+  check("reached goals don't mark every tip as used", openTips > 0 && new RegExp(`The ${openTips} marked ones`).test(guide), guide.slice(0, 70));
+  await page.evaluate((rec) => localStorage.setItem("warmup.sessions.v1", JSON.stringify([rec])), seededTalk());
   await page.goto(BASE, { waitUntil: "networkidle" });
   check("home lists a finished session", (await page.locator(".history__item").count()) === 1);
   await page.evaluate(() => localStorage.removeItem("warmup.sessions.v1"));
