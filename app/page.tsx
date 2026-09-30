@@ -92,6 +92,7 @@ export default function Home() {
         <div className="wrap site-footer__inner">
           <p>Built on AssemblyAI&apos;s Voice Agent API, Universal-3.5 Pro and LLM Gateway.</p>
           <p>Your practice history stays in this browser.</p>
+          <p>Made by Christopher Pietsch and Franz Anhäupl.</p>
           <p>
             Emoji by{" "}
             <a href="https://openmoji.org" target="_blank" rel="noreferrer">

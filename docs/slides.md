@@ -11,6 +11,7 @@ Talk out loud with AI people who react like real ones.
 
 Built on AssemblyAI: Voice Agent API (with the new Universal-3.6 Pro Realtime), Universal-3.5 Pro and LLM Gateway.
 Try it: warmup-assembly.vercel.app
+By Christopher Pietsch and Franz Anhäupl.
 
 Visual: `screenshots/home.png`, the headline beside the demo card where Jess cools at "Cool." and warms up at a real follow-up.
 
@@ -117,7 +118,6 @@ Working today:
 Simplified for the hackathon:
 - Scenes and personas are hand-written, and the interest gauge is rule-based.
 - Coach notes come from the one small model a free account can use, at 2 requests a minute. Quick rule-based notes fill in while it's busy.
-- Illustrated portraits and backdrops exist for the café so far. The other personas show their initial in a glowing circle.
 - History stays in one browser, with no accounts. English only.
 
 Next:
@@ -126,7 +126,7 @@ Next:
 - Your own scene: describe the conversation you're dreading and practice that one.
 
 Try it: warmup-assembly.vercel.app
-Code: github.com/cpietsch/just-speak
+Code: github.com/cpietsch/warmup
 Small print: Emoji by OpenMoji, CC BY-SA 4.0.
 
 Visual: Three columns, clearly labeled Working, Simplified and Next, with the orb glowing amber above the link and a QR code to the app.

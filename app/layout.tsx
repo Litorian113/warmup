@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   title: { default: `${APP_NAME}: practice the conversations you'd rather avoid`, template: `%s | ${APP_NAME}` },
   description:
     "Talk out loud with AI people who react like real ones, then get a replay of what worked. Small talk, strangers, first dates and speaking on the spot.",
+  authors: [{ name: "Christopher Pietsch" }, { name: "Franz Anhäupl" }],
 };
 
 export const viewport: Viewport = { themeColor: "#eef1f6" };

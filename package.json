@@ -4,6 +4,10 @@
   "private": true,
   "description": "Practice the conversations you'd rather avoid, with AI people who react like real ones. Built on AssemblyAI's Voice Agent API.",
   "license": "MIT",
+  "contributors": [
+    "Christopher Pietsch",
+    "Franz Anhäupl"
+  ],
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",

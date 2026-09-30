@@ -37,6 +37,6 @@ AssemblyAI Voice Agent API, AssemblyAI Universal-3.6 Pro Realtime, AssemblyAI Un
 ## Links
 
 - App: https://warmup-assembly.vercel.app (web, desktop and phone)
-- Code: https://github.com/cpietsch/just-speak (make it public before submitting)
+- Code: https://github.com/cpietsch/warmup (make it public before submitting)
 - Video: to do
 - Slides: to do

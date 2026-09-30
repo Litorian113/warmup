@@ -78,4 +78,6 @@ The app is tested against the real APIs with no one talking:
 
 Warmup is a practice tool, not therapy. Personas step out of character and point to real help if someone says they're in crisis.
 
+Made by Christopher Pietsch and Franz Anhäupl.
+
 MIT license. Emoji by [OpenMoji](https://openmoji.org), licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
