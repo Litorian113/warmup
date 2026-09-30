@@ -1,6 +1,6 @@
 // Fast UI checks against the production build, with no voice sessions (no API cost):
 // home ladder, briefing, microphone-denied message, unknown scene, unknown replay, metrics of a
-// saved replay, mobile layout.
+// saved replay, mobile layout, and the live room with the Voice Agent socket mocked.
 //
 //   npm run build && node scripts/ui-checks.mjs
 import { spawn } from "node:child_process";
@@ -77,7 +77,7 @@ try {
     } catch {}
     await sleep(300);
   }
-  const browser = await chromium.launch({ executablePath: CHROME });
+  const browser = await chromium.launch({ executablePath: CHROME, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -141,6 +141,47 @@ try {
   const overflow2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check("briefing has no horizontal scroll on a phone", overflow2 <= 0, `${overflow2}px`);
   await page.screenshot({ path: path.join(OUT, "brief-mobile.png"), fullPage: true });
+
+  // The live room, with a mocked Voice Agent socket: Jess greets you, you follow up on what she said.
+  const room = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ["microphone"] })).newPage();
+  room.on("pageerror", (e) => errors.push(e.message));
+  await room.route("**/api/token", (r) => r.fulfill({ json: { token: "mock" } }));
+  let agent;
+  await room.routeWebSocket(/agents\.assemblyai\.com/, (ws) => {
+    agent = ws;
+    let ready = false;
+    ws.onMessage((m) => {
+      if (JSON.parse(m).type !== "session.update" || ready) return;
+      ready = true;
+      ws.send(JSON.stringify({ type: "session.ready", session_id: "mock" }));
+    });
+  });
+  const send = (ev) => agent.send(JSON.stringify(ev));
+  const reply = (text) => {
+    send({ type: "reply.started" });
+    send({ type: "reply.audio", data: Buffer.alloc(24000).toString("base64") }); // 0.5 s of silence
+    send({ type: "transcript.agent", text });
+    send({ type: "reply.done", status: "completed" });
+  };
+  await room.goto(`${BASE}/practice/cafe`, { waitUntil: "networkidle" });
+  await room.getByRole("button", { name: "Start talking" }).click();
+  const gauge = room.locator(".orb [role=meter]");
+  await gauge.waitFor({ timeout: 10000 }).catch(() => {});
+  check("the room shows Jess's interest as a gauge on her portrait", (await gauge.getAttribute("aria-label").catch(() => null)) === "Jess's interest");
+  reply("Hi! Busy morning. I just got back from a climbing trip, so I'm running on coffee.");
+  await room.waitForTimeout(1500);
+  const before = Number(await gauge.getAttribute("aria-valuenow").catch(() => NaN));
+  send({ type: "input.speech.started" });
+  send({ type: "transcript.user", item_id: "u1", text: "No way, climbing? Where did you go? I've always wanted to try bouldering." });
+  send({ type: "input.speech.stopped" });
+  await room.waitForTimeout(300);
+  reply("Fontainebleau! You should totally try it.");
+  await room.waitForFunction((b) => Number(document.querySelector(".orb [role=meter]")?.getAttribute("aria-valuenow")) > b, before, { timeout: 5000 }).catch(() => {});
+  const after = Number(await gauge.getAttribute("aria-valuenow").catch(() => NaN));
+  const why = (await room.textContent(".stage .feed").catch(() => "")) ?? "";
+  check("a follow-up moves the gauge up and says why", after > before && /Followed up/.test(why), `${before} → ${after}, ${why.slice(0, 50)}`);
+  await room.screenshot({ path: path.join(OUT, "room.png") });
+  await room.context().close();
 
   check("no uncaught page errors", errors.length === 0, errors.join(" | ").slice(0, 200));
   await browser.close();

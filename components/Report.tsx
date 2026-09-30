@@ -164,7 +164,7 @@ export default function Report({ id }: { id: string }) {
         )}
         <p className="report__outcome">
           {outcomeText(rec.outcome, persona, scene.kind)}{" "}
-          {talk ? "Audience attention" : `${persona.name}'s warmth`} went from {rec.startWarmth} to {rec.finalWarmth}.
+          {talk ? "Audience attention" : `${persona.name}'s interest`} went from {rec.startWarmth} to {rec.finalWarmth}.
         </p>
         <GoalList scene={scene} done={goalsDone} inline />
         <div className="report__actions">
@@ -182,7 +182,7 @@ export default function Report({ id }: { id: string }) {
       <section className="block" aria-labelledby="curve-title">
         <div className="block__head">
           <h2 id="curve-title" className="h2">
-            {talk ? "How the room's attention moved" : `How warm ${persona.name} got`}
+            {talk ? "How the room's attention moved" : `How ${persona.name}'s interest moved`}
           </h2>
           <p className="muted">{talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}</p>
         </div>

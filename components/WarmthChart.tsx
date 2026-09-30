@@ -94,7 +94,7 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
 
   return (
     <div className="chart" ref={wrap}>
-      <svg width={w} height={H} role="img" aria-label={`${talk ? "Audience attention" : "Warmth"} over the conversation, from ${start} to ${data[data.length - 1].value} out of 100.`}>
+      <svg width={w} height={H} role="img" aria-label={`${talk ? "Audience attention" : "Interest"} over the conversation, from ${start} to ${data[data.length - 1].value} out of 100.`}>
         <defs>
           <linearGradient id={`heat${gid}`} gradientUnits="userSpaceOnUse" x1="0" y1={y(0)} x2="0" y2={y(100)}>
             {WARMTH_STOPS.map(([p, c]) => (
@@ -307,7 +307,7 @@ function Turn({ p, talk, onSeek, playback, turnSpot }: TurnsProps & { p: WarmthP
           )}
         </div>
       </div>
-      <div className="turn__score" aria-label={`${talk ? "Attention" : "Warmth"} ${p.value}, ${signed(p.delta)}`}>
+      <div className="turn__score" aria-label={`${talk ? "Attention" : "Interest"} ${p.value}, ${signed(p.delta)}`}>
         <span className={`turn__delta turn__delta--${tone}`}>{signed(p.delta)}</span>
         <span className="turn__value">
           <span className="temp-dot" style={{ background: warmthColor(p.value) }} aria-hidden="true" />

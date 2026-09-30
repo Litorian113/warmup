@@ -19,7 +19,7 @@ Findings from building Warmup on AssemblyAI's Voice Agent API, Sessions API, Uni
 
 **Replies start 1.1 to 2.9 seconds after the user stops talking.** Measured end to end in headless Chrome, from the end of our spoken line to the first `reply.audio`, in the default `balanced` mode with adaptive turn detection. Most turns land at 1.5 to 2 s; the slowest we saw was 4.9 s.
 
-**The persona can change its mood mid-session.** After `session.ready`, `system_prompt`, `input.turn_detection`, `input.keyterms`, `input.transcription_prompt`, `input.transcription_mode` and `output.volume` can still change. `greeting`, `output.voice` and `output.format` can't; changing them returns `immutable_field`. We rewrite the mood line in the persona's system prompt when the warmth meter crosses a band, and the next reply follows it.
+**The persona can change its mood mid-session.** After `session.ready`, `system_prompt`, `input.turn_detection`, `input.keyterms`, `input.transcription_prompt`, `input.transcription_mode` and `output.volume` can still change. `greeting`, `output.voice` and `output.format` can't; changing them returns `immutable_field`. We rewrite the mood line in the persona's system prompt when the interest gauge crosses a band, and the next reply follows it.
 
 **`max_silence` tops out at 10 seconds.** Higher values fail with `invalid_value 'input.turn_detection.max_silence' must be between 50 and 10000 ms`. So the agent can't be told to stay quiet through a 90-second talk. During the talk we set `min_silence: 6000, max_silence: 10000` and don't play the replies that still come, which are usually "Mm."
 

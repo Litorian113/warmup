@@ -20,15 +20,15 @@ Seven scenes on a five-level ladder, from low stakes to the moments people dread
 | 5 | Ask someone out | Lena or Jonah, whose answer depends on you |
 | 5 | Speak on the spot | Priya, a meetup host: 90 seconds on a random topic, then two questions |
 
-**While you talk,** a warmth meter shows how the other person feels and why: *+8 Followed up on "climbing"*, *−7 Very short answer*. They feel it too. As warmth changes, the app changes their mood mid-conversation, so they open up, or look for an exit and leave.
+**While you talk,** a gauge around their portrait shows how interested they are and why: *+8 Followed up on "climbing"*, *−7 Very short answer*. They feel it too. As their interest changes, the app changes their mood mid-conversation, so they open up, or look for an exit and leave.
 
-**Afterwards,** the replay shows how their warmth moved, how you sounded (response time, filler words, pace, pauses), coach notes with one thing to try next, and the moments that mattered. **Try this moment again** replays one: the persona says the same line, remembering everything before it, and you answer differently.
+**Afterwards,** the replay shows how their interest moved, how you sounded (response time, filler words, pace, pauses), coach notes with one thing to try next, and the moments that mattered. **Try this moment again** replays one: the persona says the same line, remembering everything before it, and you answer differently.
 
 ## How it uses AssemblyAI
 
 | Product | Used for |
 | --- | --- |
-| **Voice Agent API** | One WebSocket session per conversation, opened with a temporary token so the key stays on the server. `session.update` changes the persona's mood as warmth moves, and keeps the host quiet while you give a talk. `reply.create` makes the persona leave or wrap up. Word timings from `transcript.agent.delta` sync the captions to the voice. |
+| **Voice Agent API** | One WebSocket session per conversation, opened with a temporary token so the key stays on the server. `session.update` changes the persona's mood as their interest moves, and keeps the host quiet while you give a talk. `reply.create` makes the persona leave or wrap up. Word timings from `transcript.agent.delta` sync the captions to the voice. |
 | **Sessions API** | The two-channel recording (you on the left, the persona on the right), ready as soon as the session ends. |
 | **Universal-3.5 Pro** | Transcribes the recording with `multichannel` and `disfluencies`, so every um, gap and pause is measured from word timings. |
 | **LLM Gateway** | Writes the coach notes from the transcript and metrics. |
@@ -52,7 +52,7 @@ engagement model runs after every turn ──session.update / reply.create──
 
 The server is a few route handlers that hold the API key. Practice history stays in the browser, and there is no database. The persona's voice plays through an AudioWorklet, so its 10 ms chunks join without clicks, and through a WebRTC connection inside the page, so phones cancel its echo on speaker. The findings explain both.
 
-The warmth meter follows transparent rules (questions, follow-ups, sharing, answer length, response time, interruptions), so every change can be explained. The personas are a full LLM and react to meaning too.
+The interest gauge follows transparent rules (questions, follow-ups, sharing, answer length, response time, interruptions), so every change can be explained. The personas are a full LLM and react to meaning too.
 
 ## Run it
 

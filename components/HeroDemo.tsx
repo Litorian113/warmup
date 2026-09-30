@@ -3,13 +3,13 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import Emoji from "./Emoji";
-import WarmthMeter from "./WarmthMeter";
+import InterestGauge from "./InterestGauge";
 import { moodFor } from "@/lib/scenarios";
 import { warmthColor } from "@/lib/warmth";
 
 type Step = { who: "them" | "you"; text: string } | { who: "signal"; label: string; delta: number; warmth: number };
 
-// One orchestrated moment at the café: a short exchange where Jess cools, then warms.
+// One orchestrated moment at the café: a short exchange where Jess cools off, then gets interested.
 const START = 46;
 const STEPS: Step[] = [
   { who: "them", text: "I'm training for my first half marathon. My knees are not thrilled." },
@@ -50,7 +50,8 @@ export default function HeroDemo() {
       aria-label="Example: Jess warms up when you follow up on what she said"
     >
       <div className="demo__head">
-        <span className="demo__portrait" aria-hidden="true">
+        <span className="demo__portrait">
+          <InterestGauge value={warmth} label="Jess's interest" stroke={4.5} />
           <Image src={PORTRAIT} alt="" width={1200} height={1200} sizes="140px" />
         </span>
         <div className="demo__status">
@@ -58,7 +59,6 @@ export default function HeroDemo() {
             <strong>Jess</strong>, at the café
           </p>
           <p className="demo__mood">Jess {moodFor(warmth).label}</p>
-          <WarmthMeter value={warmth} label="Warmth" />
         </div>
         <span className="demo__scene">
           <Emoji code="2615" size={20} />

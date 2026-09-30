@@ -1,6 +1,6 @@
 # Slides
 
-Use a clean, friendly visual style that matches the app: light backgrounds, dark navy text (#1d2433), white rounded cards and generous spacing. Soft pastels mark the five levels: blue (#dce8f8), green (#dcebe0), peach (#fae2d4), lilac (#e8e2f5) and butter (#f8edcf). Small hand-drawn props (a coffee cup, leafy sprigs, speech bubbles, a flag on a hill) and OpenMoji emoji keep it warm, never busy. The warmth gradient, cool blue (#6f9bd1) through violet (#a99fd3) and amber (#ffb547) to pink (#f25c7a), always and only shows how warm the other person is. Headlines in Recursive, bold and slightly casual. Jess, the barista, is the face of the deck: an illustrated portrait in a warm circle. Use the app screenshots in `screenshots/` and simple diagrams to explain the flow. Keep slide text concise. Clearly distinguish what works today from what is simplified and what comes next. The screenshots show real sessions held by the test harness; the user, Alex, is scripted.
+Use a clean, friendly visual style that matches the app: light backgrounds, dark navy text (#1d2433), white rounded cards and generous spacing. Soft pastels mark the five levels: blue (#dce8f8), green (#dcebe0), peach (#fae2d4), lilac (#e8e2f5) and butter (#f8edcf). Small hand-drawn props (a coffee cup, leafy sprigs, speech bubbles, a flag on a hill) and OpenMoji emoji keep it warm, never busy. The interest gradient, cool blue (#6f9bd1) through violet (#a99fd3) and amber (#ffb547) to pink (#f25c7a), always and only shows how interested the other person is. Headlines in Recursive, bold and slightly casual. Jess, the barista, is the face of the deck: an illustrated portrait ringed by the interest gauge. Use the app screenshots in `screenshots/` and simple diagrams to explain the flow. Keep slide text concise. Clearly distinguish what works today from what is simplified and what comes next. The screenshots show real sessions held by the test harness; the user, Alex, is scripted.
 
 ## Slide 1 — Warmup: Practice the Conversations You'd Rather Avoid
 
@@ -24,14 +24,14 @@ Small talk, networking, a first date, being put on the spot.
 The challenge: How can people practice a hard conversation somewhere it's safe to get it wrong?
 Target users: Anyone who dreads these moments, from people with social anxiety to job seekers, new hires and people dating again.
 
-Visual: A speech bubble saying "Cool." while a warmth meter slides from amber to cool blue.
+Visual: A speech bubble saying "Cool." while the gauge around a portrait drops from amber to cool blue.
 
 ## Slide 3 — The Idea: A Practice Partner Who Reacts Like a Person
 
 Exposure practice, one rung at a time.
 1. Pick a scene on the ladder, from ordering a coffee to asking someone out.
 2. Talk out loud. Nothing to hold or press: speak, and pause when you're done.
-3. They react. Warmth rises and falls with what you say, and their mood follows.
+3. They react. Their interest rises and falls with what you say, and their mood follows.
 4. Get a replay: what worked, what to try, how you sounded.
 5. Try the hard moment again.
 
@@ -39,32 +39,32 @@ Visual: `screenshots/ladder.png` (seven scenes on five pastel steps), with a loo
 
 ## Slide 4 — In the Conversation: They Feel It Too
 
-- A warmth meter reacts after every turn and says why: +8 Followed up on "climbing", −7 Very short answer.
-- Their mood follows. When warmth crosses a band, the app changes their mood mid-conversation, so they open up, or look for an exit and leave.
+- A gauge around their portrait moves after every turn and says why: +8 Followed up on "climbing", −7 Very short answer.
+- Their mood follows. When their interest crosses a band, the app changes their mood mid-conversation, so they open up, or look for an exit and leave.
 - Captions follow their voice word by word. Goals tick off as you reach them, and optional hints suggest what to say next.
 - Hands-free, even on a phone speaker.
 
 Visual: `screenshots/live-room.png` on a laptop (Jess in front of the blurred café) and `screenshots/live-phone.png` on a phone beside it.
 
-## Slide 5 — The Warmth Engine: How a Turn Moves the Room
+## Slide 5 — The Interest Engine: How a Turn Moves Them
 
 Every turn runs the same loop:
-Your turn → signals → warmth (0 to 100) → mood → session.update → their next reply
+Your turn → signals → interest (0 to 100) → mood → session.update → their next reply
 
 - Signals are transparent rules: questions, follow-ups on what they said, sharing, answer length, response time, talking over them. Every change can be explained.
 - Five moods, from "checking out" to "enjoying it". Crossing into a new one rewrites the persona's instructions mid-session.
 - The persona is a full LLM, so it reacts to meaning too.
-- Let warmth drop too far and they excuse themselves and leave.
+- Let their interest drop too far and they excuse themselves and leave.
 
 What we learned: session.update takes effect on the very next reply, so the persona's mood can change without restarting the conversation.
 
-Visual: The loop as a diagram, with the five moods on the warmth gradient.
+Visual: The loop as a diagram, with the five moods on the interest gradient.
 
 ## Slide 6 — The Replay: What Worked, What to Try Next
 
 Measured from the recording, not guessed.
 - A one-line verdict and the goals you reached.
-- The warmth curve: click any turn or pinned moment to hear it.
+- The interest curve: click any turn or pinned moment to hear it.
 - Coach notes: one thing to work on next time, and a line you could have said instead.
 - How you sounded: response time, share of the talking, questions, filler words, pace and pauses, from word timings.
 
@@ -92,7 +92,7 @@ Afterwards: Sessions API → Universal-3.5 Pro → LLM Gateway
 
 The API key stays on the server, which hands the browser single-use tokens. There is no database: your history stays in your browser.
 
-Visual: Two lanes. On top, the live loop between the browser (mic, voice, warmth engine) and the Voice Agent API. Below, the path after the session: recording, transcript and metrics, coach notes.
+Visual: Two lanes. On top, the live loop between the browser (mic, voice, interest engine) and the Voice Agent API. Below, the path after the session: recording, transcript and metrics, coach notes.
 
 ## Slide 9 — What We Learned: Measured, Not Guessed
 
@@ -110,12 +110,12 @@ Visual: Four number cards, then a small loop for the test: script, greeting as v
 ## Slide 10 — Where It Stands
 
 Working today:
-- Seven scenes with live warmth, mood changes, captions, goals and hints.
+- Seven scenes with a live interest gauge, mood changes, captions, goals and hints.
 - The replay: recording, metrics, coach notes, moments and retakes.
 - Desktop and phone, including a phone speaker.
 
 Simplified for the hackathon:
-- Scenes and personas are hand-written, and the warmth meter is rule-based.
+- Scenes and personas are hand-written, and the interest gauge is rule-based.
 - Coach notes come from the one small model a free account can use, at 2 requests a minute. Quick rule-based notes fill in while it's busy.
 - Illustrated portraits and backdrops exist for the café so far. The other personas show their initial in a glowing circle.
 - History stays in one browser, with no accounts. English only.

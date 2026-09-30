@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Emoji from "./Emoji";
 import GoalList from "./GoalList";
-import WarmthMeter from "./WarmthMeter";
+import InterestGauge from "./InterestGauge";
 import { Conversation, TALK_SECONDS, type LiveState } from "@/lib/conversation";
 import { mmss } from "@/lib/metrics";
 import { planRetake, type RetakePlan } from "@/lib/retake";
@@ -217,7 +217,7 @@ function Backdrop({ src, soft }: { src: string; soft?: boolean }) {
   );
 }
 
-/** A persona's portrait (or initial) in a small warm circle. */
+/** A persona's portrait (or initial) in a small circle. */
 function Avatar({ persona }: { persona: Persona }) {
   return (
     <span className={`avatar${persona.portrait ? " avatar--portrait" : ""}`} aria-hidden="true">
@@ -308,7 +308,7 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   const lastYou = [...state.lines].reverse().find((l) => l.who === "you");
   const youAfterThem = lastYou && lastThem ? state.lines.indexOf(lastYou) > state.lines.indexOf(lastThem) : !!lastYou;
   const ending = state.status === "ending";
-  const meterLabel = talk ? "Audience attention" : `${persona.name}'s warmth`;
+  const gaugeLabel = talk ? "Audience attention" : `${persona.name}'s interest`;
 
   const statusText = ending
     ? "Wrapping up and saving your session…"
@@ -363,7 +363,12 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
             <>
               <p className="muted">Your topic</p>
               <p className="topic">{state.topic}</p>
-              <Countdown left={state.talkLeft!} />
+              <div className="dial">
+                <InterestGauge value={state.warmth} label={gaugeLabel} />
+                <Countdown left={state.talkLeft!} />
+              </div>
+              <p className="stage__mood">The audience {state.mood.label}</p>
+              <p className="small muted">Attention dips during silences longer than 3 seconds and recovers while you speak.</p>
               <div className="transcript-live" aria-live="off">
                 {state.lines
                   .filter((l) => l.who === "you")
@@ -378,9 +383,12 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
             </>
           ) : (
             <>
-              <div className={`orb${persona.portrait ? " orb--portrait" : ""}`} ref={orbRef} aria-hidden="true">
-                <div className="orb__halo" />
-                <div className="orb__core">{!persona.portrait && persona.name[0]}</div>
+              <div className={`orb${persona.portrait ? " orb--portrait" : ""}`} ref={orbRef}>
+                <div className="orb__halo" aria-hidden="true" />
+                <InterestGauge value={state.warmth} label={gaugeLabel} />
+                <div className="orb__core" aria-hidden="true">
+                  {!persona.portrait && persona.name[0]}
+                </div>
                 {persona.portrait && <Image className="orb__face" src={persona.portrait} alt="" width={1200} height={1200} sizes="260px" priority />}
               </div>
               <p className="stage__mood">
@@ -390,16 +398,17 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
                     : "Introducing your topic"
                   : `${persona.name} ${state.mood.label}`}
               </p>
+              <Feed feed={state.feed} />
               <div className="captions" aria-live="polite">
                 {lastThem && (
                   <p className="caption caption--them">
-                    <span className="caption__who">{persona.name}</span>
+                    <span className="sr-only">{persona.name}: </span>
                     {lastThem.text || "…"}
                   </p>
                 )}
                 {lastYou && youAfterThem && (
                   <p className={`caption caption--you${lastYou.final ? "" : " is-partial"}`}>
-                    <span className="caption__who">You</span>
+                    <span className="sr-only">You: </span>
                     {lastYou.text}
                   </p>
                 )}
@@ -427,25 +436,6 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
           </p>
         </div>
 
-        <aside className="side side--warmth panel" aria-label="How it's going">
-          <h2 className="panel__title">
-            <Emoji code="1F321" size={26} />
-            {talk ? "The room" : "The vibe"}
-          </h2>
-          <WarmthMeter value={state.warmth} label={meterLabel} note={talk ? undefined : state.mood.label.replace(/^is |^seems /, "")} />
-          {talk && state.phase === "talk" && (
-            <p className="small muted">Attention dips during silences longer than 3 seconds and recovers while you speak.</p>
-          )}
-          <div className="feed" aria-live="polite" hidden={!state.feed}>
-            {state.feed?.signals.map((s, i) => (
-              <span key={`${state.feed!.id}-${i}`} className={`chip ${s.delta > 0 ? "chip--up" : "chip--down"}`}>
-                <span className="chip__delta">{s.delta > 0 ? `+${s.delta}` : `−${-s.delta}`}</span>
-                {s.label}
-              </span>
-            ))}
-          </div>
-        </aside>
-
         <aside className="side side--goals panel" aria-label="Goals">
           <h2 className="panel__title">
             <Emoji code="1F3AF" size={26} />
@@ -458,28 +448,26 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   );
 }
 
+/** What moved their interest on your last turn: +8 Followed up on “climbing”. */
+function Feed({ feed }: { feed: LiveState["feed"] }) {
+  return (
+    <div className="feed" aria-live="polite">
+      {feed?.signals.map((s, i) => (
+        <span key={`${feed.id}-${i}`} className={`chip ${s.delta > 0 ? "chip--up" : "chip--down"}`}>
+          <span className="chip__delta">{s.delta > 0 ? `+${s.delta}` : `−${-s.delta}`}</span>
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** The seconds left in your talk, on a disc the audience's attention gauge rings. */
 function Countdown({ left }: { left: number }) {
-  const r = 58;
-  const c = 2 * Math.PI * r;
-  const frac = left / TALK_SECONDS;
   return (
     <div className="countdown" role="timer" aria-label={`${left} seconds left`}>
-      <svg viewBox="0 0 132 132" aria-hidden="true">
-        <circle cx="66" cy="66" r={r} fill="none" stroke="var(--rule)" strokeWidth="6" />
-        <circle
-          cx="66"
-          cy="66"
-          r={r}
-          fill="none"
-          stroke="var(--ink)"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - frac)}
-          style={{ transition: "stroke-dashoffset 0.25s linear" }}
-        />
-      </svg>
       <span className="countdown__num">{left}</span>
+      <span className="countdown__unit">seconds left</span>
     </div>
   );
 }

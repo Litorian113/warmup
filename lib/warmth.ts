@@ -1,5 +1,5 @@
-// Warmth (0-100) as a temperature color: frost blue -> lilac -> amber -> blush.
-// Used for the live room, the meter, and the report's warmth curve.
+// Interest (0-100) as a temperature color: frost blue -> lilac -> amber -> blush.
+// Used for the live room, the gauge (--heat-ring in globals.css), and the report's curve.
 
 export const WARMTH_STOPS: [number, string][] = [
   [0, "#6f9bd1"],
@@ -24,5 +24,3 @@ export function warmthColor(v: number): string {
   }
   return WARMTH_STOPS[WARMTH_STOPS.length - 1][1];
 }
-
-export const warmthGradient = `linear-gradient(90deg, ${WARMTH_STOPS.map(([p, c]) => `${c} ${p}%`).join(", ")})`;

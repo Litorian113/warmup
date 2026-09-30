@@ -97,7 +97,7 @@ export default function RecentPractice() {
                   <span className="history__result">
                     <span className={`history__pill history__pill--${tone}`}>
                       <Trend tone={tone} />
-                      {scene?.kind === "talk" ? "Attention" : "Warmth"} {r.startWarmth} → {r.finalWarmth}
+                      {scene?.kind === "talk" ? "Attention" : "Interest"} {r.startWarmth} → {r.finalWarmth}
                       <span className="sr-only"> ({signed(delta)})</span>
                     </span>
                     <span className="history__open">View replay</span>
@@ -121,7 +121,7 @@ export default function RecentPractice() {
   );
 }
 
-/** A small arrow for how the warmth moved: up, down or flat. */
+/** A small arrow for how their interest moved: up, down or flat. */
 function Trend({ tone }: { tone: "up" | "down" | "flat" }) {
   const d = tone === "up" ? "M3 13 L8 8 L11 11 L17 5 M12 5 H17 V10" : tone === "down" ? "M3 7 L8 12 L11 9 L17 15 M12 15 H17 V10" : "M3 10 H17 M13 6 L17 10 L13 14";
   return (
