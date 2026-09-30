@@ -1,14 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import Emoji from "./Emoji";
 import GoalList from "./GoalList";
 import WarmthMeter from "./WarmthMeter";
 import { Conversation, TALK_SECONDS, type LiveState } from "@/lib/conversation";
 import { mmss } from "@/lib/metrics";
 import { planRetake, type RetakePlan } from "@/lib/retake";
-import { sceneById, type Scene } from "@/lib/scenarios";
+import { sceneById, sceneTraits, type Persona, type Scene } from "@/lib/scenarios";
 import { getSession } from "@/lib/store";
 import { warmthColor } from "@/lib/warmth";
 
@@ -96,86 +98,131 @@ function Briefing(props: {
 }) {
   const { scene, personaIdx } = props;
   const p = scene.personas[personaIdx];
+  const traits = sceneTraits(scene);
   return (
-    <div className="wrap">
-      <Link href="/#scenes" className="link-back">
-        ← All scenes
-      </Link>
-      <div className="brief">
-        <div className="brief__main">
-          <p className="muted">
-            Level {scene.level}, {scene.minutes}
-          </p>
-          <h1 className="display" style={{ fontSize: "clamp(2.2rem, 4.6vw, 3.6rem)", maxWidth: "18ch" }}>
-            {scene.title}
-          </h1>
-          <p className="lede direction">{scene.setting}</p>
-
-          {scene.personas.length > 1 ? (
-            <fieldset className="brief__block choice-set">
-              <legend className="brief__label">Who you talk to</legend>
-              <div className="choice">
-                {scene.personas.map((q, i) => (
-                  <label key={q.name} className="choice__opt">
-                    <input type="radio" name="persona" checked={i === personaIdx} onChange={() => props.setPersonaIdx(i)} />
-                    <span className="choice__name">{q.name}</span>
-                    <span className="choice__desc">
-                      {q.pronouns}. {q.intro}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ) : (
-            <p>
-              <strong>{p.name}</strong> ({p.pronouns}). {p.intro}
+    <div className="brief-page">
+      {scene.backdrop && <Backdrop src={scene.backdrop} soft />}
+      <div className="wrap">
+        <Link href="/#scenes" className="link-back">
+          ← All scenes
+        </Link>
+        <div className="brief">
+          <div className="brief__head">
+            <p className="level-pill">
+              Level <b>{scene.level}</b> · {scene.minutes}
             </p>
-          )}
+            <h1 className="display brief__title">{scene.title}</h1>
+            <p className="lede">{scene.setting}</p>
 
-          <div className="brief__block">
-            <h2 className="brief__label">Your goals</h2>
-            <GoalList scene={scene} done={{}} />
-          </div>
-
-          <details className="more">
-            <summary>Tips before you start</summary>
-            <ul className="tips">
-              {scene.tips.map((t) => (
-                <li key={t}>{t}</li>
+            <ul className="traits" aria-label="At a glance">
+              {traits.map((t) => (
+                <li key={t.label} className="trait">
+                  <span className="trait__icon">
+                    <Emoji code={t.emoji} size={30} />
+                  </span>
+                  {t.label}
+                </li>
               ))}
             </ul>
-          </details>
-        </div>
 
-        <aside className="brief__panel" aria-label="Start">
-          <h2 className="h3">{scene.kind === "talk" ? "You'll get a random topic" : `${p.name} speaks first`}</h2>
-          <p className="muted">
-            {scene.kind === "talk"
-              ? `Talk for about ${TALK_SECONDS} seconds, then answer two questions. Press "I'm done" when you finish early.`
-              : "Just talk, and pause when you're done. There's no button to hold."}
-          </p>
-          {scene.kind === "conversation" && (
-            <label className="toggle">
-              <input type="checkbox" checked={props.hints} onChange={(e) => props.setHints(e.target.checked)} />
-              Show a hint for what to say next
-            </label>
-          )}
-          {props.error && (
-            <p className="notice" role="alert">
-              {props.error}
+            {scene.personas.length > 1 && (
+              <fieldset className="choice-set brief__choice">
+                <legend className="brief__label">Who you talk to</legend>
+                <div className="choice">
+                  {scene.personas.map((q, i) => (
+                    <label key={q.name} className="choice__opt">
+                      <input type="radio" name="persona" checked={i === personaIdx} onChange={() => props.setPersonaIdx(i)} />
+                      <span className="choice__name">{q.name}</span>
+                      <span className="choice__desc">{q.intro}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+          </div>
+
+          <div className="brief__cards">
+            <section className="glass-card" aria-labelledby="goals-title">
+              <h2 id="goals-title" className="glass-card__title">
+                <Emoji code="1F3AF" size={34} />
+                Your goals
+              </h2>
+              <GoalList scene={scene} done={{}} />
+            </section>
+
+            <section className="glass-card" aria-labelledby="tips-title">
+              <h2 id="tips-title" className="glass-card__title">
+                <Emoji code="1F4A1" size={34} />
+                Tips before you start
+              </h2>
+              <ul className="checklist">
+                {scene.tips.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </section>
+          </div>
+
+          <aside className="brief__panel glass-card" aria-label="Start">
+            <div className="brief__who">
+              <Avatar persona={p} />
+              <div>
+                <h2 className="h3">{scene.kind === "talk" ? "You'll get a random topic" : `${p.name} speaks first`}</h2>
+                <p className="small muted">
+                  {p.name}, {p.pronouns}. {p.intro}
+                </p>
+              </div>
+            </div>
+
+            <p className="muted">
+              {scene.kind === "talk"
+                ? `Talk for about ${TALK_SECONDS} seconds, then answer two questions. Press "I'm done" when you finish early.`
+                : "Just talk, and pause when you're done. There's no button to hold."}
             </p>
-          )}
-          <button className="btn btn--big" onClick={props.onStart} disabled={props.connecting}>
-            {props.connecting ? "Connecting…" : "Start talking"}
-          </button>
-          <p className="small muted">
-            {props.connecting
-              ? "Allow the microphone if your browser asks."
-              : "Uses your microphone. The conversation is recorded so you can replay it in your report."}
-          </p>
-        </aside>
+            {scene.kind === "conversation" && (
+              <label className="toggle">
+                <input type="checkbox" checked={props.hints} onChange={(e) => props.setHints(e.target.checked)} />
+                Show a hint for what to say next
+              </label>
+            )}
+            <div className="brief__go">
+              {props.error && (
+                <p className="notice" role="alert">
+                  {props.error}
+                </p>
+              )}
+              <button className="btn btn--big" onClick={props.onStart} disabled={props.connecting}>
+                {props.connecting ? "Connecting…" : "Start talking"}
+              </button>
+              <p className="mic-note small muted">
+                <Emoji code="1F399" size={22} />
+                {props.connecting
+                  ? "Allow the microphone if your browser asks."
+                  : "Uses your microphone. The conversation is recorded so you can replay it in your report."}
+              </p>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** The scene's illustration, blurred behind the page. `soft` frosts it more, for reading. */
+function Backdrop({ src, soft }: { src: string; soft?: boolean }) {
+  return (
+    <div className={`backdrop${soft ? " backdrop--soft" : ""}`} aria-hidden="true">
+      <img src={src} alt="" />
+    </div>
+  );
+}
+
+/** A persona's portrait (or initial) in a small warm circle. */
+function Avatar({ persona }: { persona: Persona }) {
+  return (
+    <span className={`avatar${persona.portrait ? " avatar--portrait" : ""}`} aria-hidden="true">
+      {persona.portrait ? <Image src={persona.portrait} alt="" width={1200} height={1200} sizes="120px" /> : persona.name[0]}
+    </span>
   );
 }
 
@@ -186,7 +233,7 @@ function RetakeBriefing(props: { scene: Scene; plan: RetakePlan; personaName: st
       <Link href={`/report/${plan.recordId}`} className="link-back">
         ← Back to your replay
       </Link>
-      <div className="brief">
+      <div className="brief brief--simple">
         <div className="brief__main">
           <p className="muted">
             {scene.title} with {personaName}
@@ -216,7 +263,7 @@ function RetakeBriefing(props: { scene: Scene; plan: RetakePlan; personaName: st
             )}
           </div>
         </div>
-        <aside className="brief__panel" aria-label="Start">
+        <aside className="brief__panel glass-card" aria-label="Start">
           <h2 className="h3">One exchange, then back to your replay</h2>
           <p className="muted">Say your new version when {personaName} finishes. The retake ends after {personaName} reacts.</p>
           {props.error && (
@@ -279,11 +326,12 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
 
   return (
     <div
-      className="room"
+      className={`room${scene.backdrop ? " room--scene" : ""}`}
       data-echo={state.echo}
       data-output={state.output ?? undefined}
       style={{ "--room": warmthColor(state.warmth), "--warm-c": (state.warmth / 100).toFixed(2) } as React.CSSProperties}
     >
+      {scene.backdrop && <Backdrop src={scene.backdrop} />}
       <div className="wrap room__bar">
         <div className="room__title">
           <span className="room__scene">
@@ -326,9 +374,10 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
             </>
           ) : (
             <>
-              <div className="orb" ref={orbRef} aria-hidden="true">
+              <div className={`orb${persona.portrait ? " orb--portrait" : ""}`} ref={orbRef} aria-hidden="true">
                 <div className="orb__halo" />
-                <div className="orb__core">{persona.name[0]}</div>
+                <div className="orb__core">{!persona.portrait && persona.name[0]}</div>
+                {persona.portrait && <Image className="orb__face" src={persona.portrait} alt="" width={1200} height={1200} sizes="260px" priority />}
               </div>
               <p className="stage__mood">
                 {talk
@@ -353,7 +402,10 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
               </div>
               {hints && !talk && state.tip && state.speaking !== "them" && (
                 <p className="tip">
-                  <span className="tip__label">Try this</span>
+                  <span className="tip__label">
+                    <Emoji code="1F4A1" size={18} />
+                    Try this
+                  </span>
                   {state.tip}
                 </p>
               )}
@@ -371,7 +423,11 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
           </p>
         </div>
 
-        <aside className="side panel" aria-label="How it's going">
+        <aside className="side side--warmth panel" aria-label="How it's going">
+          <h2 className="panel__title">
+            <Emoji code="1F321" size={26} />
+            {talk ? "The room" : "The vibe"}
+          </h2>
           <WarmthMeter value={state.warmth} label={meterLabel} note={talk ? undefined : state.mood.label.replace(/^is |^seems /, "")} />
           {talk && state.phase === "talk" && (
             <p className="small muted">Attention dips during silences longer than 3 seconds and recovers while you speak.</p>
@@ -384,10 +440,14 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
               </span>
             ))}
           </div>
-          <div className="side__goals">
-            <h2 className="panel__title">Goals</h2>
-            <GoalList scene={scene} done={state.goals} />
-          </div>
+        </aside>
+
+        <aside className="side side--goals panel" aria-label="Goals">
+          <h2 className="panel__title">
+            <Emoji code="1F3AF" size={26} />
+            Goals
+          </h2>
+          <GoalList scene={scene} done={state.goals} />
         </aside>
       </div>
     </div>

@@ -13,6 +13,9 @@ export interface Persona {
   /** Private details for the prompt, revealed only when asked. */
   bio: string;
   style: string;
+  /** Portrait for the orb (a file in public/): a round illustration on a transparent square,
+   *  whose circle fills the orb. Anything outside the circle, like hair, may overlap its edge. */
+  portrait?: string;
 }
 
 export type GoalCheck =
@@ -51,6 +54,10 @@ export interface Scene {
   /** Extra lines appended to each mood band, e.g. how they'd answer being asked out. */
   moodExtras?: Partial<Record<MoodId, string>>;
   keyterms?: string[];
+  /** OpenMoji code point for the scene (a file in public/emoji/), e.g. "2615" for ☕. */
+  emoji: string;
+  /** Illustrated backdrop for the live room (a file in public/), shown blurred behind the orb. */
+  backdrop?: string;
 }
 
 export type MoodId = "leaving" | "bored" | "neutral" | "interested" | "delighted";
@@ -107,6 +114,7 @@ const EXIT =
 export const SCENES: Scene[] = [
   {
     id: "cafe",
+    emoji: "2615",
     level: 1,
     kind: "conversation",
     title: "Order a coffee",
@@ -118,6 +126,7 @@ export const SCENES: Scene[] = [
         pronouns: "she/her",
         age: 26,
         voice: "mary",
+        portrait: "/personas/Jess-Persona.png",
         intro: "The barista. Friendly, a little chatty.",
         bio: "You've worked at this café for two years. You're saving up for a trip to Japan in the spring. You're training for your first half marathon and your knees hate you. You think oat milk is overrated but you'd never say that to a customer.",
         style: "Easygoing and upbeat, with a dry sense of humor. You chat while you work.",
@@ -135,9 +144,11 @@ export const SCENES: Scene[] = [
     extraRules:
       "You're working the counter. When they order, repeat it back naturally and ask for their name for the cup. Make light small talk while you make the drink, like asking about their plans for the day. After four or five exchanges the drink is ready: hand it over and wish them a good day.",
     keyterms: ["Jess", "oat milk", "flat white", "cortado", "matcha"],
+    backdrop: "/backdrops/cafe.png",
   },
   {
     id: "coworker",
+    emoji: "1F3E2",
     level: 2,
     kind: "conversation",
     title: "Coffee machine small talk",
@@ -168,6 +179,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "party",
+    emoji: "1F389",
     level: 3,
     kind: "conversation",
     title: "Talk to a stranger at a party",
@@ -201,6 +213,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "networking",
+    emoji: "1F91D",
     level: 4,
     kind: "conversation",
     title: "The quiet one at a networking event",
@@ -231,6 +244,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "first-date",
+    emoji: "1F377",
     level: 4,
     kind: "conversation",
     title: "First date",
@@ -274,6 +288,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "ask-out",
+    emoji: "1F48C",
     level: 5,
     kind: "conversation",
     title: "Ask someone out",
@@ -320,6 +335,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "stage",
+    emoji: "1F3A4",
     level: 5,
     kind: "talk",
     title: "Speak on the spot",
@@ -372,6 +388,26 @@ export const LEVELS: Record<Level, { name: string; note: string }> = {
 };
 
 export const sceneById = (id: string) => SCENES.find((s) => s.id === id);
+
+/** Three at-a-glance traits for the briefing: the stakes, how warm they start, how hard it is. */
+export function sceneTraits(s: Scene): { emoji: string; label: string }[] {
+  const start = s.profile.baseline;
+  return [
+    { emoji: s.emoji, label: LEVELS[s.level].name },
+    start >= 55
+      ? { emoji: "1F331", label: "Friendly vibe" }
+      : start >= 45
+        ? { emoji: "1F642", label: "Open to a chat" }
+        : { emoji: "1F9CA", label: "Slow to warm up" },
+    s.level <= 2
+      ? { emoji: "1F423", label: "Great for beginners" }
+      : s.level === 3
+        ? { emoji: "1FA9C", label: "A step up" }
+        : s.level === 4
+          ? { emoji: "1F9D7", label: "A real stretch" }
+          : { emoji: "1F525", label: "Boss level" },
+  ];
+}
 
 export const pronoun = (p: Persona) => (p.pronouns === "she/her" ? { sub: "she", obj: "her", pos: "her" } : { sub: "he", obj: "him", pos: "his" });
 

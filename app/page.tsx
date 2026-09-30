@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Emoji from "@/components/Emoji";
 import HeroDemo from "@/components/HeroDemo";
 import RecentPractice from "@/components/RecentPractice";
 import { LEVELS, SCENES, type Level } from "@/lib/scenarios";
@@ -46,6 +47,7 @@ export default function Home() {
                 </div>
                 {SCENES.filter((s) => s.level === lvl).map((s) => (
                   <Link key={s.id} href={`/practice/${s.id}`} className="scene">
+                    <Emoji code={s.emoji} size={36} className="scene__emoji" />
                     <span className="scene__title">{s.title}</span>
                     <span className="scene__who">{s.blurb}</span>
                   </Link>
@@ -61,6 +63,17 @@ export default function Home() {
         <div className="wrap site-footer__inner">
           <p>Built on AssemblyAI&apos;s Voice Agent API, Universal-3.5 Pro and LLM Gateway.</p>
           <p>Your practice history stays in this browser.</p>
+          <p>
+            Emoji by{" "}
+            <a href="https://openmoji.org" target="_blank" rel="noreferrer">
+              OpenMoji
+            </a>
+            , licensed{" "}
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">
+              CC BY-SA 4.0
+            </a>
+            .
+          </p>
         </div>
       </footer>
     </>
