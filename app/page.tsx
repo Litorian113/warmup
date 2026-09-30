@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Bubbles, Cloud, Cup, Flag, Plant } from "@/components/Decor";
+import { Blob, Bubbles, Cloud, Cup, Flag, Plant, Plants, Sparks } from "@/components/Decor";
+import Emoji from "@/components/Emoji";
 import HeroDemo from "@/components/HeroDemo";
 import RecentPractice from "@/components/RecentPractice";
 import { LEVELS, SCENES, type Level } from "@/lib/scenarios";
@@ -9,7 +10,7 @@ const STEPS: Record<Level, { tint: string; Prop: (p: { className?: string }) => 
   1: { tint: "#dce8f8", Prop: Cup },
   2: { tint: "#dcebe0", Prop: Plant },
   3: { tint: "#fae2d4", Prop: Bubbles },
-  4: { tint: "#e8e2f5", Prop: Plant },
+  4: { tint: "#e8e2f5", Prop: Plants },
   5: { tint: "#f8edcf", Prop: Flag },
 };
 
@@ -29,19 +30,33 @@ export default function Home() {
             </p>
             <div className="hero__actions">
               <Link className="btn btn--big" href="/practice/cafe">
+                <span className="btn__emoji">
+                  <Emoji code="2615" size={26} />
+                </span>
                 Start with a coffee order
               </Link>
               <Link className="btn btn--ghost btn--big" href="#scenes">
                 Choose a scene
               </Link>
             </div>
-            <p className="hero__note">Uses your microphone. Headphones are optional.</p>
+            <p className="hero__note">
+              <Emoji code="1F399" size={22} />
+              Uses your microphone. Headphones are optional.
+            </p>
           </div>
-          <HeroDemo />
+          <div className="hero__art">
+            <Blob className="hero__blob hero__blob--peach" shape="a" color="#fbe3d3" />
+            <Blob className="hero__blob hero__blob--blue" shape="b" color="#dbe6f7" />
+            <Blob className="hero__blob hero__blob--lilac" shape="c" color="#e9e2f6" />
+            <Sparks className="hero__sparks hero__sparks--a" />
+            <Sparks className="hero__sparks hero__sparks--b" />
+            <Plant className="hero__plant" />
+            <Cup className="hero__cup" />
+            <HeroDemo />
+          </div>
         </section>
 
         <section id="scenes" className="scenes" aria-labelledby="scenes-title">
-          <Cloud className="decor--cloud decor--cloud-c" />
           <div className="wrap">
             <div className="section-head">
               <h2 id="scenes-title" className="display scenes__title">
@@ -52,7 +67,7 @@ export default function Home() {
             <ol className="ladder">
               {levels.map((lvl) => {
                 const { tint, Prop } = STEPS[lvl];
-              const prev = lvl > 1 ? STEPS[(lvl - 1) as Level].tint : tint;
+                const prev = lvl > 1 ? STEPS[(lvl - 1) as Level].tint : tint;
                 return (
                   <li key={lvl} className="rung" style={{ "--lvl": lvl, "--tint": tint, "--prev": prev } as React.CSSProperties}>
                     <Prop className={`rung__prop rung__prop--${lvl}`} />

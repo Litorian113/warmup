@@ -24,20 +24,32 @@ export function Cup({ className }: P) {
   );
 }
 
+/** The sprig drawing (public/backdrops/flower.svg), cropped to its bounds so the stem ends at the bottom edge. */
+const SPRIG_BOX = "290 204 678 890";
+const Sprig = (p: { x?: number; y?: number; width: number; height: number }) => (
+  <svg {...p} viewBox={SPRIG_BOX}>
+    <image href="/backdrops/flower.svg" width="1254" height="1254" />
+  </svg>
+);
+
+/** A single three-leaf sprig. */
 export function Plant({ className }: P) {
   return (
-    <svg viewBox="0 0 120 92" {...svg(className)}>
-      <g>
-        <path d="M60 90 C36 76 22 50 30 26 C48 40 60 64 60 90 Z" fill="#8fb09b" />
-        <path d="M60 90 C84 76 98 50 90 26 C72 40 60 64 60 90 Z" fill="#7aa086" />
-        <path d="M60 90 C48 64 46 34 60 8 C74 34 72 64 60 90 Z" fill="#5f8a70" />
-        <path d="M60 90 C40 84 16 78 6 60 C28 56 48 70 60 90 Z" fill="#a4c2ad" />
-        <path d="M60 90 C80 84 104 78 114 60 C92 56 72 70 60 90 Z" fill="#94b6a0" />
+    <svg viewBox={SPRIG_BOX} {...svg(className)}>
+      <image href="/backdrops/flower.svg" width="1254" height="1254" />
+    </svg>
+  );
+}
+
+/** Two sprigs: a mirrored big one and a small one leaning the other way, so it isn't the same plant twice. */
+export function Plants({ className }: P) {
+  return (
+    <svg viewBox="0 0 160 120" {...svg(className)}>
+      <g transform="translate(160 0) scale(-1 1)">
+        <Sprig x={44} width={92} height={120} />
       </g>
-      <g stroke="#4c7560" strokeWidth="1.6" fill="none" opacity="0.5">
-        <path d="M60 86 Q58 50 60 16" />
-        <path d="M58 86 Q44 60 34 32" />
-        <path d="M62 86 Q76 60 86 32" />
+      <g transform="rotate(16 127 120)">
+        <Sprig x={100} y={50} width={54} height={70} />
       </g>
     </svg>
   );
@@ -87,6 +99,34 @@ export function Cloud({ className }: P) {
         d="M30 82 Q8 82 10 63 Q12 46 32 46 Q36 20 64 20 Q84 20 92 38 Q102 28 118 30 Q140 32 142 54 Q162 52 168 67 Q172 82 150 82 Z"
         fill="#dce6f6"
       />
+    </svg>
+  );
+}
+
+// Soft, lopsided pastel shapes for behind the hero card.
+const BLOBS = {
+  a: "M112 18 C176 -6 238 40 246 104 C254 170 214 238 146 246 C78 254 12 214 6 146 C0 82 48 42 112 18 Z",
+  b: "M86 10 C150 0 210 44 214 112 C218 176 172 232 104 236 C40 240 -4 190 2 122 C8 58 30 18 86 10 Z",
+  c: "M130 8 C196 14 246 76 238 142 C230 204 170 246 104 238 C40 230 0 178 8 112 C16 46 70 2 130 8 Z",
+};
+
+export function Blob({ className, shape = "a", color }: P & { shape?: keyof typeof BLOBS; color: string }) {
+  return (
+    <svg viewBox="0 0 252 252" {...svg(className)}>
+      <path d={BLOBS[shape]} fill={color} />
+    </svg>
+  );
+}
+
+/** Three short orange strokes, the "look here" marks from the illustrations. */
+export function Sparks({ className }: P) {
+  return (
+    <svg viewBox="0 0 40 40" {...svg(className)}>
+      <g stroke={SPARK} strokeWidth="3.5" strokeLinecap="round">
+        <path d="M10 30 L2 22" />
+        <path d="M20 22 L16 6" />
+        <path d="M30 26 L38 14" />
+      </g>
     </svg>
   );
 }
