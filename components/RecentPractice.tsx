@@ -2,47 +2,131 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { sceneById } from "@/lib/scenarios";
+import Emoji from "./Emoji";
+import { mmss } from "@/lib/metrics";
+import { LEVELS, SCENES, sceneById } from "@/lib/scenarios";
 import { listSessions, type SessionRecord } from "@/lib/store";
-import { warmthColor } from "@/lib/warmth";
+
+const FIRST = 6; // sessions shown before "Show all"
 
 const when = (ts: number) =>
   new Date(ts).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "±0");
+
 export default function RecentPractice() {
   const [list, setList] = useState<SessionRecord[] | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [all, setAll] = useState(false);
   useEffect(() => setList(listSessions()), []);
 
   if (!list?.length) return null;
+  const practiced = SCENES.filter((s) => list.some((r) => r.sceneId === s.id));
+  const best = Math.max(...list.map((r) => r.finalWarmth - r.startWarmth));
+  const shownList = list.filter((r) => filter === "all" || r.sceneId === filter);
+  const shown = all ? shownList : shownList.slice(0, FIRST);
+
   return (
     <section id="history" className="wrap history" aria-labelledby="history-title">
-      <div className="section-head">
-        <h2 id="history-title" className="h2">
+      <div className="history__intro">
+        <h2 id="history-title" className="display history__heading">
           Your practice
         </h2>
+        <p className="lede">Every conversation you&rsquo;ve had, with its replay. Open one to see what worked, or try a moment again.</p>
+        <dl className="history__stats">
+          <div>
+            <dt>Sessions</dt>
+            <dd>{list.length}</dd>
+          </div>
+          <div>
+            <dt>Scenes tried</dt>
+            <dd>
+              {practiced.length}
+              <span> of {SCENES.length}</span>
+            </dd>
+          </div>
+          {best > 0 && (
+            <div>
+              <dt>Best gain</dt>
+              <dd>{signed(best)}</dd>
+            </div>
+          )}
+        </dl>
       </div>
-      <ul className="history__list">
-        {list.slice(0, 8).map((r) => {
-          const scene = sceneById(r.sceneId);
-          return (
-            <li key={r.id}>
-              <Link href={`/report/${r.id}`} className="history__item">
-                <span className="temp-dot" style={{ background: warmthColor(r.finalWarmth) }} aria-hidden="true" />
-                <span>
-                  <span className="history__title">
-                    {scene?.title ?? r.sceneId} with {r.personaName}
+
+      <div className="history__main">
+        {practiced.length > 1 && (
+          <label className="history__filter">
+            <span className="sr-only">Show sessions from</span>
+            <select
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value);
+                setAll(false);
+              }}
+            >
+              <option value="all">All scenes</option>
+              {practiced.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <ul className="history__list">
+          {shown.map((r) => {
+            const scene = sceneById(r.sceneId);
+            const delta = r.finalWarmth - r.startWarmth;
+            const tone = delta >= 3 ? "up" : delta <= -3 ? "down" : "flat";
+            return (
+              <li key={r.id}>
+                <Link href={`/report/${r.id}`} className="history__item">
+                  <span className="history__tile" style={{ background: scene ? LEVELS[scene.level].tint : undefined }} aria-hidden="true">
+                    {scene && <Emoji code={scene.emoji} size={34} />}
                   </span>
-                  <br />
-                  <span className="history__when">{when(r.createdAt)}</span>
-                </span>
-                <span className="history__warmth">
-                  {scene?.kind === "talk" ? "Attention" : "Warmth"} {r.startWarmth} to {r.finalWarmth}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+                  <span className="history__text">
+                    <span className="history__title">
+                      {scene?.title ?? r.sceneId} with {r.personaName}
+                    </span>
+                    <span className="history__when">
+                      {when(r.createdAt)} · {mmss(r.durationSec)}
+                    </span>
+                  </span>
+                  <span className="history__result">
+                    <span className={`history__pill history__pill--${tone}`}>
+                      <Trend tone={tone} />
+                      {scene?.kind === "talk" ? "Attention" : "Warmth"} {r.startWarmth} → {r.finalWarmth}
+                      <span className="sr-only"> ({signed(delta)})</span>
+                    </span>
+                    <span className="history__open">View replay</span>
+                  </span>
+                  <svg className="history__chev" viewBox="0 0 12 20" aria-hidden="true">
+                    <path d="M3 3 L9 10 L3 17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+
+        {shownList.length > shown.length && (
+          <button className="btn btn--ghost btn--quiet history__more" onClick={() => setAll(true)}>
+            Show all {shownList.length}
+          </button>
+        )}
+      </div>
     </section>
+  );
+}
+
+/** A small arrow for how the warmth moved: up, down or flat. */
+function Trend({ tone }: { tone: "up" | "down" | "flat" }) {
+  const d = tone === "up" ? "M3 13 L8 8 L11 11 L17 5 M12 5 H17 V10" : tone === "down" ? "M3 7 L8 12 L11 9 L17 15 M12 15 H17 V10" : "M3 10 H17 M13 6 L17 10 L13 14";
+  return (
+    <svg className="history__trend" viewBox="0 0 20 20" aria-hidden="true">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

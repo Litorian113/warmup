@@ -379,12 +379,13 @@ export const TALK_TOPICS = [
   "The case for (or against) pineapple on pizza",
 ];
 
-export const LEVELS: Record<Level, { name: string; note: string }> = {
-  1: { name: "Low stakes", note: "Short, friendly, easy to leave." },
-  2: { name: "Familiar faces", note: "People you'll see again." },
-  3: { name: "Strangers", note: "Nobody to lean on but you." },
-  4: { name: "Higher stakes", note: "Someone to win over." },
-  5: { name: "The big ones", note: "The moments you'd rather avoid." },
+/** Each level's name, a line about it, and its pastel (the home ladder's steps, the practice list). */
+export const LEVELS: Record<Level, { name: string; note: string; tint: string }> = {
+  1: { name: "Low stakes", note: "Short, friendly, easy to leave.", tint: "#dce8f8" },
+  2: { name: "Familiar faces", note: "People you'll see again.", tint: "#dcebe0" },
+  3: { name: "Strangers", note: "Nobody to lean on but you.", tint: "#fae2d4" },
+  4: { name: "Higher stakes", note: "Someone to win over.", tint: "#e8e2f5" },
+  5: { name: "The big ones", note: "The moments you'd rather avoid.", tint: "#f8edcf" },
 };
 
 export const sceneById = (id: string) => SCENES.find((s) => s.id === id);

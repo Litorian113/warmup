@@ -5,14 +5,8 @@ import HeroDemo from "@/components/HeroDemo";
 import RecentPractice from "@/components/RecentPractice";
 import { LEVELS, SCENES, type Level } from "@/lib/scenarios";
 
-// Each step of the ladder has its own pastel and a little prop sitting on top of it.
-const STEPS: Record<Level, { tint: string; Prop: (p: { className?: string }) => React.ReactElement }> = {
-  1: { tint: "#dce8f8", Prop: Cup },
-  2: { tint: "#dcebe0", Prop: Plant },
-  3: { tint: "#fae2d4", Prop: Bubbles },
-  4: { tint: "#e8e2f5", Prop: Plants },
-  5: { tint: "#f8edcf", Prop: Flag },
-};
+// Each step of the ladder has its level's pastel and a little prop sitting on top of it.
+const PROPS: Record<Level, (p: { className?: string }) => React.ReactElement> = { 1: Cup, 2: Plant, 3: Bubbles, 4: Plants, 5: Flag };
 
 export default function Home() {
   const levels: Level[] = [1, 2, 3, 4, 5];
@@ -66,8 +60,9 @@ export default function Home() {
             </div>
             <ol className="ladder">
               {levels.map((lvl) => {
-                const { tint, Prop } = STEPS[lvl];
-                const prev = lvl > 1 ? STEPS[(lvl - 1) as Level].tint : tint;
+                const { tint } = LEVELS[lvl];
+                const Prop = PROPS[lvl];
+                const prev = lvl > 1 ? LEVELS[(lvl - 1) as Level].tint : tint;
                 return (
                   <li key={lvl} className="rung" style={{ "--lvl": lvl, "--tint": tint, "--prev": prev } as React.CSSProperties}>
                     <Prop className={`rung__prop rung__prop--${lvl}`} />
