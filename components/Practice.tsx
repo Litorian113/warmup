@@ -118,7 +118,7 @@ function Briefing(props: {
               {traits.map((t) => (
                 <li key={t.label} className="trait">
                   <span className="trait__icon">
-                    <Emoji code={t.emoji} size={30} />
+                    <Emoji code={t.emoji} size={54} />
                   </span>
                   {t.label}
                 </li>

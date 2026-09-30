@@ -24,9 +24,6 @@ export default function Home() {
             </p>
             <div className="hero__actions">
               <Link className="btn btn--big" href="/practice/cafe">
-                <span className="btn__emoji">
-                  <Emoji code="2615" size={26} />
-                </span>
                 Start with a coffee order
               </Link>
               <Link className="btn btn--ghost btn--big" href="#scenes">
@@ -54,7 +51,7 @@ export default function Home() {
           <div className="wrap">
             <div className="section-head">
               <h2 id="scenes-title" className="display scenes__title">
-                Pick a rung
+                Pick a level
               </h2>
               <p className="lede">Start low. Each level adds a little more pressure.</p>
             </div>

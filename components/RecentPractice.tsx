@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Emoji from "./Emoji";
 import { mmss } from "@/lib/metrics";
-import { LEVELS, SCENES, sceneById } from "@/lib/scenarios";
+import { SCENES, sceneById } from "@/lib/scenarios";
 import { listSessions, type SessionRecord } from "@/lib/store";
 
 const FIRST = 6; // sessions shown before "Show all"
@@ -83,8 +83,8 @@ export default function RecentPractice() {
             return (
               <li key={r.id}>
                 <Link href={`/report/${r.id}`} className="history__item">
-                  <span className="history__tile" style={{ background: scene ? LEVELS[scene.level].tint : undefined }} aria-hidden="true">
-                    {scene && <Emoji code={scene.emoji} size={34} />}
+                  <span className="history__tile" aria-hidden="true">
+                    {scene && <Emoji code={scene.emoji} size={52} />}
                   </span>
                   <span className="history__text">
                     <span className="history__title">

@@ -566,17 +566,6 @@ body:has(.room) .site-header {
   padding: 0 24px;
 }
 
-/* the start button carries a small coffee cup */
-.btn__emoji {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-left: -10px;
-  border-radius: 50%;
-  background: #fff;
-}
-
 .hero__note {
   display: flex;
   align-items: center;
@@ -1047,13 +1036,12 @@ body:has(.home) .site-footer {
   box-shadow: 0 18px 34px -22px rgba(60, 50, 90, 0.45);
 }
 
+/* the scene's OpenMoji, free-standing */
 .history__tile {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  background: var(--rule-2);
+  width: 56px;
+  height: 56px;
 }
 
 .history__text {
@@ -1201,18 +1189,18 @@ body:has(.home) .site-footer {
   padding-right: 0;
 }
 
+/* the trait's OpenMoji, free-standing */
 .trait__icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.75);
-  box-shadow: 0 6px 16px -10px rgba(60, 40, 20, 0.35);
+  width: 54px;
+  height: 54px;
+  margin: -6px -4px -6px -6px; /* the emoji's own padding; keeps the row as tall as before */
 }
 
 .glass-card {
   display: grid;
+  align-content: start; /* stretched to the row's height, the content stays at the top */
   gap: 16px;
   padding: clamp(20px, 3vw, 28px);
   border-radius: 26px;
@@ -1305,15 +1293,15 @@ body:has(.home) .site-footer {
   gap: 10px;
 }
 
-/* The header reads first; below it the goal and tip cards and the start panel share one row,
-   top and bottom aligned, so the eye moves straight across to "Start talking". */
+/* The header spans the full width. Below it, the goals and tips stack on the left and the start
+   panel sits beside them, top and bottom level, so the eye moves across to "Start talking". */
 .brief {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   grid-template-areas:
-    "head ."
+    "head head"
     "cards panel";
-  gap: 22px clamp(28px, 5vw, 64px);
+  gap: 26px 22px;
   padding-top: 20px;
 }
 
@@ -2818,10 +2806,10 @@ body:has(.home) .site-footer {
     gap: 12px 14px;
     padding: 12px 14px 12px 12px;
   }
-  .history__tile {
-    width: 52px;
-    height: 52px;
-    border-radius: 15px;
+  .history__tile,
+  .history__tile .emoji {
+    width: 44px;
+    height: 44px;
   }
   .history__result {
     grid-column: 2 / 3;
