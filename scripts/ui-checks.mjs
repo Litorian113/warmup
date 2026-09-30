@@ -45,7 +45,12 @@ function seededTalk() {
     sessionId: null,
     outcome: "wrapped-up",
     lines: [],
-    points: [{ t: 10, value: 62, delta: 2, signals: [], said: "", kind: "tick" }, { t: 20, value: 66, delta: 4, signals: [], said: "", kind: "tick" }],
+    points: [
+      { t: 10, value: 62, delta: 2, signals: [], said: "", kind: "tick" },
+      { t: 20, value: 66, delta: 4, signals: [], said: "", kind: "tick" },
+      // scored when the host replied, 2.5 s after the answer that began at 1:11 ended
+      { t: 92.5, value: 68, delta: 2, signals: [], said: "I would tell them to automate it" },
+    ],
     startWarmth: 60,
     finalWarmth: 70,
     goals: {},
@@ -120,6 +125,8 @@ try {
   check("pauses where AssemblyAI split an utterance still count", /2\.5 ?sec/.test(pause) && /2 pauses/.test(pause), pause.slice(0, 70));
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("warmup.sessions.v1") ?? "[]")[0]?.analysis);
   check("the rebuilt analysis is saved", saved?.v === 2 && saved.utterances.filter((u) => u.who === "you").length === 3, `v=${saved?.v}`);
+  const turnAt = (await page.textContent(".turn .turn__time").catch(() => "")) ?? "";
+  check("a turn plays from where you started it, not from when it was scored", turnAt === "1:11", turnAt);
   check("the report folds the full transcript away", await page.evaluate(() => document.querySelector(".script-block")?.open === false));
   check("the report credits AssemblyAI once, at the end", /Universal-3\.5 Pro/.test((await page.textContent(".report__credit").catch(() => "")) ?? ""));
   await page.goto(BASE, { waitUntil: "networkidle" });

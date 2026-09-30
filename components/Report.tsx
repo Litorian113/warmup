@@ -103,27 +103,25 @@ export default function Report({ id }: { id: string }) {
   }, [loadAudio]);
 
   // Every play button toggles: play from its spot, or pause if that spot is already playing.
-  const [pb, setPb] = useState<Playback>({ spot: null, playing: false, now: 0 });
+  // Only playing, pausing and seeking change this; the chart's playhead follows the audio by itself,
+  // so the report doesn't re-render while audio plays.
+  const [pb, setPb] = useState<Playback>({ spot: null, playing: false });
   const seek = (t: number) => {
     const a = audioRef.current;
     if (!a) return;
     const spot = spotOf(t);
     if (!a.paused && pb.spot === spot) return a.pause();
     a.currentTime = spot;
-    setPb((p) => ({ ...p, spot, now: spot }));
+    setPb((p) => (p.spot === spot ? p : { ...p, spot }));
     void a.play().catch(() => {});
   };
   const audioEvents = {
-    onPlay: () => setPb((p) => ({ ...p, playing: true })),
-    onPause: () => setPb((p) => ({ ...p, playing: false })),
-    onTimeUpdate: (e: React.SyntheticEvent<HTMLAudioElement>) => {
-      const now = e.currentTarget.currentTime;
-      setPb((p) => ({ ...p, now }));
-    },
+    onPlay: () => setPb((p) => (p.playing ? p : { ...p, playing: true })),
+    onPause: () => setPb((p) => (p.playing ? { ...p, playing: false } : p)),
     // Scrubbing in the player moves playback away from the spot it started at.
     onSeeked: (e: React.SyntheticEvent<HTMLAudioElement>) => {
       const now = e.currentTarget.currentTime;
-      setPb((p) => (p.spot !== null && Math.abs(now - p.spot) > 0.5 ? { ...p, spot: null, now } : { ...p, now }));
+      setPb((p) => (p.spot !== null && Math.abs(now - p.spot) > 0.5 ? { ...p, spot: null } : p));
     },
   };
 
@@ -146,6 +144,7 @@ export default function Report({ id }: { id: string }) {
   const coach = rec.coach;
   const goalsDone = { ...rec.goals };
   if (!talk) for (const g of coach?.goals ?? []) if (g.done) goalsDone[g.id] = true;
+  const tiles = rec.analysis ? tilesFor(rec.analysis.metrics, rec, talk) : null;
   const when = new Date(rec.createdAt).toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
 
   return (
@@ -188,7 +187,17 @@ export default function Report({ id }: { id: string }) {
           <p className="muted">{talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}</p>
         </div>
         <div className="card">
-          <WarmthChart points={rec.points} start={rec.startWarmth} duration={rec.durationSec} moments={coach?.moments ?? []} talk={talk} onSeek={audioUrl ? seek : undefined} playback={pb} />
+          <WarmthChart
+            points={rec.points}
+            start={rec.startWarmth}
+            duration={rec.durationSec}
+            moments={coach?.moments ?? []}
+            talk={talk}
+            onSeek={audioUrl ? seek : undefined}
+            playback={pb}
+            audio={audioRef}
+            youTurns={rec.analysis?.utterances.filter((u) => u.who === "you").map((u) => ({ start: u.start / 1000, end: u.end / 1000 }))}
+          />
         </div>
       </section>
 
@@ -276,11 +285,11 @@ export default function Report({ id }: { id: string }) {
           <h2 id="sound-title" className="h2">
             How you sounded
           </h2>
-          {rec.analysis && <TileSummary tiles={tilesFor(rec.analysis.metrics, rec, talk)} />}
+          {tiles && <TileSummary tiles={tiles} />}
         </div>
-        {rec.analysis ? (
+        {tiles ? (
           <div className="tiles">
-            {tilesFor(rec.analysis.metrics, rec, talk).map((t) => (
+            {tiles.map((t) => (
               <Tile key={t.label} {...t} />
             ))}
           </div>

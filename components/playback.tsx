@@ -7,8 +7,6 @@ export interface Playback {
   /** The spot (seconds into the recording) playback was last started from, if any. */
   spot: number | null;
   playing: boolean;
-  /** Current position in the recording, in seconds. */
-  now: number;
 }
 
 /** Normalizes a spot so a button and the playback state compare equal. */

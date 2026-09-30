@@ -15,8 +15,20 @@ const KIND = {
   awkward: { color: "var(--bad)", label: "Awkward moment" },
 } as const;
 
-/** A point is saved when the turn ends; playing it starts a few seconds earlier, as the turn begins. */
-const turnSpot = (t: number) => Math.max(0, t - 4);
+/**
+ * Where playing a turn starts. A point is scored a few seconds after you stop talking, when the
+ * reply begins, so play from the start of your last turn before it, as timed in the recording's
+ * transcript. Without a transcript, go back 4 seconds.
+ */
+function spotFinder(youTurns: { start: number; end: number }[] = []) {
+  return (t: number) => {
+    for (let i = youTurns.length - 1; i >= 0; i--) {
+      const u = youTurns[i];
+      if (u.start <= t) return t - u.end < 10 ? u.start : Math.max(0, t - 4);
+    }
+    return Math.max(0, t - 4);
+  };
+}
 const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "±0");
 
 interface Props {
@@ -27,9 +39,14 @@ interface Props {
   talk: boolean;
   onSeek?: (t: number) => void;
   playback?: Playback;
+  /** The recording, for the playhead. */
+  audio?: React.RefObject<HTMLAudioElement | null>;
+  /** Your turns in the recording, in seconds, so a turn plays from where you started it. */
+  youTurns?: { start: number; end: number }[];
 }
 
-export default function WarmthChart({ points, start, duration, moments, talk, onSeek, playback }: Props) {
+export default function WarmthChart({ points, start, duration, moments, talk, onSeek, playback, audio, youTurns }: Props) {
+  const turnSpot = spotFinder(youTurns);
   const wrap = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(760);
   const [hover, setHover] = useState<number | null>(null);
@@ -68,7 +85,6 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
   const hp = hover !== null ? data[hover] : null;
   const tipLeft = hp ? (x(hp.t) > w / 2 ? Math.max(0, x(hp.t) - 312) : Math.min(w - 300, x(hp.t) + 12)) : 0;
   const hoverPlaying = hp ? isPlayingFrom(playback, turnSpot(hp.t)) : false;
-  const playheadX = playback?.playing ? x(playback.now) : null;
   const key = (e: React.KeyboardEvent, t: number) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -111,13 +127,7 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
 
         {hp && <line x1={x(hp.t)} x2={x(hp.t)} y1={m.top} y2={y(0)} stroke="var(--ink-3)" strokeWidth={1} />}
 
-        {/* where the recording is playing right now */}
-        {playheadX !== null && (
-          <g className="chart__playhead" style={{ transform: `translateX(${playheadX.toFixed(1)}px)` }} aria-hidden="true">
-            <line x1={0} x2={0} y1={m.top} y2={y(0) + 24} />
-            <circle cx={0} cy={m.top} r={3.5} />
-          </g>
-        )}
+        {playback?.playing && audio && <Playhead audio={audio} x={x} top={m.top} bottom={y(0) + 24} />}
 
         {/* pointer layer: the crosshair snaps to the nearest turn */}
         <rect
@@ -209,13 +219,41 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
         </div>
       )}
 
-      <Turns points={points} talk={talk} onSeek={onSeek} playback={playback} />
+      <Turns points={points} talk={talk} onSeek={onSeek} playback={playback} turnSpot={turnSpot} />
     </div>
   );
 }
 
+/**
+ * Where the recording is playing right now. It follows the audio element itself, so while audio
+ * plays only this re-renders, not the chart or the report around it.
+ */
+function Playhead({ audio, x, top, bottom }: { audio: React.RefObject<HTMLAudioElement | null>; x: (t: number) => number; top: number; bottom: number }) {
+  const [now, setNow] = useState(() => audio.current?.currentTime ?? 0);
+  useEffect(() => {
+    const a = audio.current;
+    if (!a) return;
+    const update = () => setNow(a.currentTime);
+    a.addEventListener("timeupdate", update);
+    return () => a.removeEventListener("timeupdate", update);
+  }, [audio]);
+  return (
+    <g className="chart__playhead" style={{ transform: `translateX(${x(now).toFixed(1)}px)` }} aria-hidden="true">
+      <line x1={0} x2={0} y1={top} y2={bottom} />
+      <circle cx={0} cy={top} r={3.5} />
+    </g>
+  );
+}
+
 /** Every scored turn as a card: what you said, what it did to the meter, and why. */
-function Turns({ points, talk, onSeek, playback }: { points: WarmthPoint[]; talk: boolean; onSeek?: (t: number) => void; playback?: Playback }) {
+interface TurnsProps {
+  talk: boolean;
+  onSeek?: (t: number) => void;
+  playback?: Playback;
+  turnSpot: (t: number) => number;
+}
+
+function Turns({ points, ...rest }: TurnsProps & { points: WarmthPoint[] }) {
   const turns = points.filter((p) => p.kind !== "tick");
   if (!turns.length) return null;
   const up = turns.filter((p) => p.delta > 0).length;
@@ -232,14 +270,14 @@ function Turns({ points, talk, onSeek, playback }: { points: WarmthPoint[]; talk
       </summary>
       <ol className="turns">
         {turns.map((p, i) => (
-          <Turn key={i} p={p} talk={talk} onSeek={onSeek} playback={playback} />
+          <Turn key={i} p={p} {...rest} />
         ))}
       </ol>
     </details>
   );
 }
 
-function Turn({ p, talk, onSeek, playback }: { p: WarmthPoint; talk: boolean; onSeek?: (t: number) => void; playback?: Playback }) {
+function Turn({ p, talk, onSeek, playback, turnSpot }: TurnsProps & { p: WarmthPoint }) {
   const [open, setOpen] = useState(false);
   const long = p.said.length > 220;
   const tone = p.delta > 0 ? "up" : p.delta < 0 ? "down" : "flat";
@@ -247,7 +285,7 @@ function Turn({ p, talk, onSeek, playback }: { p: WarmthPoint; talk: boolean; on
   return (
     <li className={`turn turn--${tone}${isPlayingFrom(playback, spot) ? " is-playing" : ""}`}>
       <div className="turn__when">
-        {onSeek && playback ? <PlayButton at={spot} playback={playback} onToggle={onSeek} /> : <span className="turn__time">{mmss(p.t)}</span>}
+        {onSeek && playback ? <PlayButton at={spot} playback={playback} onToggle={onSeek} /> : <span className="turn__time">{mmss(spot)}</span>}
       </div>
       <div className="turn__body">
         <p className={`turn__said${long && !open ? " is-clamped" : ""}`}>“{p.said}”</p>
