@@ -53,14 +53,22 @@ interface AgentSession {
   artifacts?: { type: string; url: string }[];
 }
 
+// agents.assemblyai.com sends each caller to its nearest cluster, and a session can only be looked up on the
+// cluster it ran on. The browser's location picks that cluster, not this server's (Vercel runs it in the US),
+// so ask both.
+const AGENT_CLUSTERS = ["https://agents.us.assemblyai.com", "https://agents.eu.assemblyai.com"];
+
 export async function getAgentSession(id: string): Promise<AgentSession> {
-  const res = await fetch(`https://agents.assemblyai.com/v1/sessions/${encodeURIComponent(id)}`, {
-    headers: { Authorization: apiKey() },
-    cache: "no-store",
-  });
-  if (res.status === 404) throw new HttpError(404, "That session doesn't exist (or was deleted).");
-  if (!res.ok) throw new HttpError(502, `AssemblyAI couldn't load the session (${res.status}).`);
-  return res.json();
+  const answers = await Promise.allSettled(
+    AGENT_CLUSTERS.map((base) =>
+      fetch(`${base}/v1/sessions/${encodeURIComponent(id)}`, { headers: { Authorization: apiKey() }, cache: "no-store" }),
+    ),
+  );
+  const found = answers.find((a) => a.status === "fulfilled" && a.value.ok);
+  if (found?.status === "fulfilled") return found.value.json();
+  if (answers.every((a) => a.status === "fulfilled" && a.value.status === 404)) throw new HttpError(404, "That session doesn't exist (or was deleted).");
+  const failed = answers.map((a) => (a.status === "fulfilled" ? a.value.status : "no answer")).join(", ");
+  throw new HttpError(502, `AssemblyAI couldn't load the session (${failed}).`);
 }
 
 /** Artifacts appear once the session completes; wait a little for them. */

@@ -73,7 +73,9 @@ In the simulation, the guard took the cut-offs from 9 to none, and without echo 
 
 ## Sessions API
 
-**The recording is ready as soon as the session ends.** `GET /v1/sessions/{id}` returns a stereo OGG (left = user, right = agent) and a timeline. The server polls for up to 15 s, but we haven't needed to wait.
+**The recording is ready about 3 seconds after the session ends.** `GET /v1/sessions/{id}` returns a stereo OGG (left = user, right = agent) and a timeline. In a timed run the session read `completed` 0.8 s after `session.end`, and the recording was listed at 2.9 s. The server polls for up to 15 s.
+
+**A session can only be looked up in the region it ran in.** `agents.assemblyai.com` sends each caller to its nearest cluster. From Berlin it resolves to the EU cluster, the same as `agents.eu.assemblyai.com`; the US one is `agents.us.assemblyai.com`. A session lives on the cluster the browser's WebSocket reached, and `GET /v1/sessions/{id}` on the other cluster answers 404, with the same key. A token works on either. We found this on Vercel, where our server runs in the US: every report of a session held from Europe failed with "That session doesn't exist". The server now asks both clusters. (tested 30 September 2026; `lib/server/aai.ts`, `getAgentSession`)
 
 **The recording URL goes straight into transcription.** The artifact URL is pre-signed, and `POST /v2/transcript` accepts it as `audio_url`, so nothing is downloaded or uploaded again. The URLs expire quickly, so the report asks the server for a fresh one before playback.
 
