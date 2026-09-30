@@ -288,6 +288,7 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   const { scene, persona } = conv;
   const orbRef = useRef<HTMLDivElement>(null);
   const micRef = useRef<HTMLSpanElement>(null);
+  const captionsRef = useRef<HTMLDivElement>(null);
 
   // Start at the top: on a phone you scroll down the briefing to press Start, and the room would
   // otherwise open at that scroll position, with the title and the End button out of view.
@@ -314,6 +315,18 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   const lastYou = [...state.lines].reverse().find((l) => l.who === "you");
   const youAfterThem = lastYou && lastThem ? state.lines.indexOf(lastYou) > state.lines.indexOf(lastThem) : !!lastYou;
   const ending = state.status === "ending";
+
+  // The captions have a fixed height, so the room doesn't jump as words arrive. When a long reply
+  // doesn't fit, keep the newest words in view and fade the oldest out at the top, like subtitles.
+  const shownThem = lastThem?.text;
+  const shownYou = youAfterThem ? lastYou?.text : undefined;
+  useEffect(() => {
+    const el = captionsRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    el.dataset.overflow = String(el.scrollHeight > el.clientHeight + 1);
+  }, [shownThem, shownYou]);
+
   const gaugeLabel = talk ? "Audience attention" : `${persona.name}'s interest`;
 
   const statusText = ending
@@ -411,7 +424,7 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
                   : `${persona.name} ${state.mood.label}`}
               </p>
               <Feed feed={state.feed} />
-              <div className="captions" aria-live="polite">
+              <div className="captions" aria-live="polite" ref={captionsRef}>
                 {lastThem && (
                   <p className="caption caption--them">
                     <span className="sr-only">{persona.name}: </span>
@@ -425,14 +438,19 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
                   </p>
                 )}
               </div>
-              {hints && !talk && state.tip && state.speaking !== "them" && (
-                <p className="tip">
-                  <span className="tip__label">
-                    <Emoji code="1F4A1" size={18} />
-                    Try this
-                  </span>
-                  {state.tip}
-                </p>
+              {/* the bubble comes and goes every turn, so its space is kept */}
+              {hints && !talk && (
+                <div className="tip-slot">
+                  {state.tip && state.speaking !== "them" && (
+                    <p className="tip">
+                      <span className="tip__label">
+                        <Emoji code="1F4A1" size={18} />
+                        Try this
+                      </span>
+                      {state.tip}
+                    </p>
+                  )}
+                </div>
               )}
             </>
           )}

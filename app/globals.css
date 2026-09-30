@@ -1665,10 +1665,40 @@ body:has(.home) .site-footer {
   color: var(--ink-2);
 }
 
+/* A list and its heading share one marker column: the heading's emoji sits centered over the
+   items' checkmarks, and its words start where theirs do. */
+.brief__cards .glass-card {
+  --mark: 26px;
+  --mark-gap: 12px;
+}
+
+.side--goals {
+  --mark: 22px;
+  --mark-gap: 10px;
+}
+
+.brief__cards .glass-card__title,
+.side--goals .panel__title {
+  display: grid;
+  grid-template-columns: var(--mark) 1fr;
+  column-gap: var(--mark-gap);
+}
+
+.brief__cards .glass-card__title > .emoji,
+.side--goals .panel__title > .emoji,
+.brief__cards .goal__mark {
+  justify-self: center;
+}
+
+.brief__cards .goal {
+  grid-template-columns: var(--mark) 1fr;
+  gap: var(--mark-gap);
+}
+
 .checklist li {
   display: grid;
-  grid-template-columns: 26px 1fr;
-  gap: 12px;
+  grid-template-columns: var(--mark, 26px) 1fr;
+  gap: var(--mark-gap, 12px);
   align-items: start;
   line-height: 1.45;
 }
@@ -2128,12 +2158,20 @@ body:has(.home) .site-footer {
   color: var(--ink-2);
 }
 
+/* A fixed height, so the room holds still while words arrive: four lines of theirs and two of
+   yours. A longer reply scrolls up and fades out at the top (Practice.tsx keeps the newest words in view). */
 .captions {
   width: min(680px, 100%);
   display: grid;
   gap: 14px;
-  min-height: 190px;
+  height: 220px;
+  overflow: hidden;
   align-content: start;
+  scroll-behavior: smooth;
+}
+
+.captions[data-overflow="true"] {
+  mask-image: linear-gradient(to bottom, transparent, #000 56px);
 }
 
 .caption {
@@ -2158,7 +2196,7 @@ body:has(.home) .site-footer {
 }
 
 .status-line {
-  min-height: 1.5em;
+  min-height: 24px; /* as tall as "Listening…" with its dot */
   font-size: 0.95rem;
   color: var(--ink-2);
 }
@@ -2207,7 +2245,7 @@ body:has(.home) .site-footer {
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
-  min-height: 30px;
+  min-height: 32px; /* a row of chips */
 }
 
 .feed .chip {
@@ -2262,6 +2300,15 @@ body:has(.home) .site-footer {
   left: calc(24% - 14px);
   bottom: -28px;
   animation-delay: 1.6s;
+}
+
+/* The "Try this" bubble comes and goes every turn; its slot stays, so nothing below it moves. */
+.tip-slot {
+  width: 100%;
+  min-height: var(--tip-slot, 118px); /* a two-line bubble and its trail */
+  display: grid;
+  justify-items: center;
+  align-content: start;
 }
 
 @keyframes tip-in {
@@ -2330,7 +2377,7 @@ body:has(.home) .site-footer {
 
 .transcript-live {
   width: min(680px, 100%);
-  max-height: 220px;
+  height: 220px; /* fixed, so the dial above doesn't move as you talk */
   overflow: hidden;
   color: var(--ink-2);
   font-size: 1.05rem;
@@ -3873,7 +3920,26 @@ body:has(.home) .site-footer {
     flex-wrap: nowrap;
   }
   .captions {
-    min-height: 120px;
+    height: 200px;
+  }
+  .tip-slot {
+    --tip-slot: 142px; /* the bubble wraps to three lines */
+  }
+  /* The reasons stay on one row, so the page doesn't grow and shrink with them: centered while they
+     fit, scrolled sideways when they don't. */
+  .feed {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .feed .chip:first-child {
+    margin-left: auto;
+  }
+  .feed .chip:last-child {
+    margin-right: auto;
   }
   .script__line {
     grid-template-columns: minmax(0, 1fr);
