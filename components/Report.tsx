@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BadgeCelebration } from "./Badges";
 import GoalList from "./GoalList";
 import WarmthChart from "./WarmthChart";
 import { PlayButton, spotOf, type Playback } from "./playback";
@@ -10,7 +11,8 @@ import { isFiller, mmss } from "@/lib/metrics";
 import { fetchCoach, runAnalysis, upgradeAnalysis } from "@/lib/report";
 import { compareRetake, planRetake } from "@/lib/retake";
 import { SCENES, sceneById, type Scene } from "@/lib/scenarios";
-import { getSession, updateSession, type Metrics, type SessionRecord } from "@/lib/store";
+import { badgesFrom, earnedBadges } from "@/lib/badges";
+import { getSession, listSessions, updateSession, type Metrics, type SessionRecord } from "@/lib/store";
 
 type Status = "good" | "meh" | "bad";
 
@@ -125,6 +127,13 @@ export default function Report({ id }: { id: string }) {
     },
   };
 
+  // Badges this session earned for the first time (recomputed as the coach's goal notes arrive).
+  // Uses this session as shown, even if saving its latest update to storage failed.
+  const newBadges = useMemo(
+    () => (rec ? badgesFrom(rec.id, earnedBadges([rec, ...listSessions().filter((r) => r.id !== rec.id)])) : []),
+    [rec],
+  );
+
   if (rec === undefined)
     return (
       <div className="wrap center-state">
@@ -194,6 +203,8 @@ export default function Report({ id }: { id: string }) {
           </div>
         </aside>
       </header>
+
+      <BadgeCelebration badges={newBadges} />
 
       <section className="block" aria-labelledby="curve-title">
         <div className="block__head">

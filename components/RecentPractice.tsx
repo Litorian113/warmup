@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BadgeShelf } from "./Badges";
 import Emoji from "./Emoji";
 import { mmss } from "@/lib/metrics";
 import { SCENES, sceneById } from "@/lib/scenarios";
+import { BADGES, earnedBadges } from "@/lib/badges";
 import { listSessions, type SessionRecord } from "@/lib/store";
 
 const FIRST = 6; // sessions shown before "Show all"
@@ -52,6 +54,7 @@ export default function RecentPractice() {
             </div>
           )}
         </dl>
+        <BadgeShelf badges={BADGES} earned={earnedBadges(list)} />
       </div>
 
       <div className="history__main">

@@ -79,6 +79,8 @@ export class Conversation {
   // turn bookkeeping
   private pendingYou = "";
   private youTurns: string[] = [];
+  /** Retake: the user's turns before the replayed moment, so the new line is scored in the same context. */
+  private earlierYou: string[] = [];
   private pairs: { them: string; you: string }[] = [];
   private lastThem = "";
   private agentEndAt = 0;
@@ -121,6 +123,7 @@ export class Conversation {
     this.persona = persona;
     this.retake = retake;
     this.history = retake?.context.map((l) => `${l.who === "you" ? "Them" : "You"}: ${l.text}`).join("\n") || undefined;
+    this.earlierYou = retake?.context.filter((l) => l.who === "you").map((l) => l.text) ?? [];
     const warmth = retake?.startWarmth ?? scene.profile.baseline;
     this.state = {
       status: "idle",
@@ -380,7 +383,7 @@ export class Conversation {
     this.afterReply = null;
     if (line) {
       const final = this.replyFinal ?? line.text;
-      const history = [...this.youTurns];
+      const history = [...this.earlierYou, ...this.youTurns];
       this.lastThem = final;
       this.replyLine = null;
       // Keep the caption in step with the voice: settle it when playback ends.
@@ -416,7 +419,7 @@ export class Conversation {
     const text = this.pendingYou.trim();
     this.pendingYou = "";
     if (!text || this.muteAgent) return;
-    const history = [...this.youTurns];
+    const history = [...this.earlierYou, ...this.youTurns];
     this.youTurns.push(text);
     this.pairs.push({ them: this.lastThem, you: text });
 
