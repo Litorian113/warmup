@@ -45,6 +45,8 @@ In the simulation, the guard took the cut-offs from 9 to none, and without echo 
 
 **The live transcript drops most filler words.** `transcript.user` rarely contained "um" or "uh" even when the audio did. Filler counts come from transcribing the recording with `disfluencies: true` instead.
 
+**You can't choose the Voice Agent API's speech model.** `session.ready` echoes the whole session config, and it has no model field. An `input.speech_model: "universal-3-6-pro"` we sent was dropped without an error. [AssemblyAI's model list](https://www.assemblyai.com/llms/models.md) says the agent is built on Universal-3.6 Pro Realtime (launched September 2026), but nothing the API returns says which model runs. (probed 30 September 2026)
+
 **Voice names don't tell you how a voice sounds.** We measured each voice's median pitch and matched voices to personas by that, not by name. (`scripts/voice-pitch.mjs`)
 
 | Voice | Median pitch |
@@ -76,6 +78,8 @@ In the simulation, the guard took the cut-offs from 9 to none, and without echo 
 ## Universal-3.5 Pro (pre-recorded)
 
 **Two channels beat speaker diarization here.** With `multichannel: true` every word carries its channel, so "you" and "them" are never mixed up.
+
+**Universal-3.6 Pro is streaming-only.** Asking pre-recorded STT for `universal-3-6-pro` fails with HTTP 400: `"speech_models" must be a non-empty list containing one or more of: "universal-3-pro", "universal-2", "universal-3-5-pro"` (30 September 2026). So the recording stays on Universal-3.5 Pro.
 
 **Transcription takes 8 to 16 seconds per minute of two-channel audio**, measured from submitting the job to `completed`.
 

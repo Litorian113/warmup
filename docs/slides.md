@@ -9,7 +9,7 @@ Talk out loud with AI people who react like real ones.
 - Give one-word answers and they drift away.
 - Afterwards, replay it and try the hard moment again.
 
-Built on AssemblyAI: Voice Agent API, Universal-3.5 Pro and LLM Gateway.
+Built on AssemblyAI: Voice Agent API (with the new Universal-3.6 Pro Realtime), Universal-3.5 Pro and LLM Gateway.
 Try it: warmup-assembly.vercel.app
 
 Visual: `screenshots/home.png`, the headline beside the demo card where Jess cools at "Cool." and warms up at a real follow-up.
@@ -85,7 +85,7 @@ Architecture:
 During the conversation: Browser ↔ Voice Agent API
 Afterwards: Sessions API → Universal-3.5 Pro → LLM Gateway
 
-- Voice Agent API: one live session per conversation. session.update changes the persona's mood, reply.create makes them leave, and word timings sync the captions.
+- Voice Agent API: one live session per conversation, hearing you with the new Universal-3.6 Pro Realtime. session.update changes the persona's mood, reply.create makes them leave, and word timings sync the captions.
 - Sessions API: the two-channel recording, you on the left and the persona on the right, ready as soon as the session ends.
 - Universal-3.5 Pro: transcribes it with multichannel and disfluencies, so every um and every pause is measured.
 - LLM Gateway: writes the coach notes from the transcript and metrics.

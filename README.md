@@ -4,7 +4,7 @@
 
 **Try it:** [warmup-assembly.vercel.app](https://warmup-assembly.vercel.app). It needs a microphone, and works on a phone speaker too.
 
-Built for the AssemblyAI Voice Agent Hackathon (September 2026) on AssemblyAI's Voice Agent API, Universal-3.5 Pro and LLM Gateway.
+Built for the AssemblyAI Voice Agent Hackathon (September 2026) on AssemblyAI's Voice Agent API (which hears you with the new Universal-3.6 Pro Realtime), Universal-3.5 Pro and LLM Gateway.
 
 ## What it does
 
@@ -28,7 +28,7 @@ Seven scenes on a five-level ladder, from low stakes to the moments people dread
 
 | Product | Used for |
 | --- | --- |
-| **Voice Agent API** | One WebSocket session per conversation, opened with a temporary token so the key stays on the server. `session.update` changes the persona's mood as their interest moves, and keeps the host quiet while you give a talk. `reply.create` makes the persona leave or wrap up. Word timings from `transcript.agent.delta` sync the captions to the voice. |
+| **Voice Agent API** | One WebSocket session per conversation, opened with a temporary token so the key stays on the server. It hears you with Universal-3.6 Pro Realtime. `session.update` changes the persona's mood as their interest moves, and keeps the host quiet while you give a talk. `reply.create` makes the persona leave or wrap up. Word timings from `transcript.agent.delta` sync the captions to the voice. |
 | **Sessions API** | The two-channel recording (you on the left, the persona on the right), ready as soon as the session ends. |
 | **Universal-3.5 Pro** | Transcribes the recording with `multichannel` and `disfluencies`, so every um, gap and pause is measured from word timings. |
 | **LLM Gateway** | Writes the coach notes from the transcript and metrics. |
