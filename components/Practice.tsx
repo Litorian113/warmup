@@ -6,13 +6,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Emoji from "./Emoji";
 import GoalList from "./GoalList";
-import SceneGuide from "./SceneGuide";
 import InterestGauge from "./InterestGauge";
 import { Conversation, TALK_SECONDS, type LiveState } from "@/lib/conversation";
 import { mmss } from "@/lib/metrics";
 import { planRetake, type RetakePlan } from "@/lib/retake";
 import { portraitFit, sceneById, sceneTraits, type Persona, type Scene } from "@/lib/scenarios";
-import { GUIDES } from "@/lib/guides";
 import { getSession } from "@/lib/store";
 import { warmthColor } from "@/lib/warmth";
 
@@ -205,7 +203,6 @@ function Briefing(props: {
             </div>
           </aside>
         </div>
-        {GUIDES[scene.id] && <SceneGuide guide={GUIDES[scene.id]} />}
       </div>
     </div>
   );

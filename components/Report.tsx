@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCelebration } from "./Badges";
+import { Sparks } from "./Decor";
+import Emoji from "./Emoji";
+import SceneGuide from "./SceneGuide";
 import GoalList from "./GoalList";
 import WarmthChart from "./WarmthChart";
 import { PlayButton, spotOf, type Playback } from "./playback";
@@ -12,6 +15,7 @@ import { fetchCoach, runAnalysis, upgradeAnalysis } from "@/lib/report";
 import { compareRetake, planRetake } from "@/lib/retake";
 import { SCENES, sceneById, type Scene } from "@/lib/scenarios";
 import { badgesFrom, earnedBadges } from "@/lib/badges";
+import { GUIDES } from "@/lib/guides";
 import { getSession, listSessions, updateSession, type Metrics, type SessionRecord } from "@/lib/store";
 
 type Status = "good" | "meh" | "bad";
@@ -183,21 +187,31 @@ export default function Report({ id }: { id: string }) {
         </p>
 
         <aside className="report__goals glass-card" aria-labelledby="goals-title">
-          <h2 id="goals-title" className="glass-card__title">
-            Goals
-            <span className="report__goals-count">
+          <Sparks className="report__goals-sparks" />
+          <div className="report__goals-head">
+            <h2 id="goals-title" className="report__goals-title">
+              Goals
+            </h2>
+            <p className="report__goals-count">
               {reached} of {scene.goals.length} reached
-            </span>
-          </h2>
+            </p>
+          </div>
           <GoalList scene={scene} done={goalsDone} openLabel="Next time" />
           <div className="report__actions">
-            <Link className="btn" href={`/practice/${scene.id}`}>
+            <Link className="btn report__again" href={`/practice/${scene.id}`}>
+              <Emoji code="2728" size={26} />
               Practice this again
             </Link>
             {next && (
               <Link className="btn btn--ghost report__next" href={`/practice/${next.id}`}>
-                <span className="report__next-label">Up next</span>
-                {next.title}
+                <Emoji code={next.emoji} size={36} />
+                <span className="report__next-text">
+                  <span className="report__next-label">Up next</span>
+                  {next.title}
+                </span>
+                <svg className="report__next-arrow" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M4 10 H16 M11 5 L16 10 L11 15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </Link>
             )}
           </div>
@@ -284,6 +298,8 @@ export default function Report({ id }: { id: string }) {
           <div className="skeleton" style={{ height: 240 }} aria-label="Reading your transcript" />
         )}
       </section>
+
+      {GUIDES[scene.id] && <SceneGuide guide={GUIDES[scene.id]} title="Try these next time" />}
 
       {coach && coach.moments.length > 0 && (
         <section className="block" aria-labelledby="moments-title">

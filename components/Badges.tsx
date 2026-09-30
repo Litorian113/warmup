@@ -21,11 +21,17 @@ export function BadgeArt({ badge, size = 88, locked = false }: { badge: Badge; s
   );
 }
 
-/** Every badge: earned ones in color, the rest greyed out. Tap or focus one to see how you earn it. */
+const FIRST = 6; // two rows of three before "Show all"
+
+const earnedOn = (at: number) => new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+/** The badges, earned ones first. A few show, the rest unfold. Hover, focus or tap one for its card. */
 export function BadgeShelf({ badges, earned }: { badges: Badge[]; earned: Earned }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
   const count = badges.filter((b) => earned.has(b.id)).length;
-  const shown = badges.find((b) => b.id === picked);
+  const sorted = [...badges.filter((b) => earned.has(b.id)), ...badges.filter((b) => !earned.has(b.id))];
+  const shown = all ? sorted : sorted.slice(0, FIRST);
   return (
     <section className="badges" aria-labelledby="badges-title">
       <div className="badges__head">
@@ -37,35 +43,38 @@ export function BadgeShelf({ badges, earned }: { badges: Badge[]; earned: Earned
         </span>
       </div>
       <ul className="badges__grid">
-        {badges.map((b) => {
-          const got = earned.has(b.id);
+        {shown.map((b) => {
+          const got = earned.get(b.id);
           return (
-            <li key={b.id}>
+            <li key={b.id} className={`badge-cell${picked === b.id ? " is-picked" : ""}`}>
               <button
                 type="button"
-                className={`badge${got ? "" : " is-locked"}${picked === b.id ? " is-picked" : ""}`}
-                aria-pressed={picked === b.id}
+                className={`badge${got ? "" : " is-locked"}`}
+                aria-describedby={`badge-card-${b.id}`}
+                aria-expanded={picked === b.id}
                 onClick={() => setPicked(picked === b.id ? null : b.id)}
-                onFocus={() => setPicked(b.id)}
+                onBlur={() => setPicked((p) => (p === b.id ? null : p))}
               >
                 <BadgeArt badge={b} size={64} locked={!got} />
                 <span className="badge__name">{b.name}</span>
-                <span className="sr-only">{got ? ", earned" : ", not earned yet"}</span>
               </button>
+              <div id={`badge-card-${b.id}`} role="tooltip" className={`badge-card${got ? " is-earned" : ""}`} style={got ? { background: b.tint } : undefined}>
+                <span className="badge-card__status">{got ? `Earned ${earnedOn(got.at)}` : "Locked"}</span>
+                <span className="badge-card__name">{b.name}</span>
+                <span className="badge-card__text">
+                  {got ? "You got it: " : "How to earn it: "}
+                  {b.description}
+                </span>
+              </div>
             </li>
           );
         })}
       </ul>
-      <p className="badges__detail small" aria-live="polite">
-        {shown ? (
-          <>
-            <b>{shown.name}</b> {earned.has(shown.id) ? "Earned: " : "To earn it: "}
-            {shown.description}
-          </>
-        ) : (
-          "Tap a badge to see how you earn it."
-        )}
-      </p>
+      {badges.length > FIRST && (
+        <button type="button" className="badges__more" aria-expanded={all} onClick={() => setAll(!all)}>
+          {all ? "Show fewer" : `Show all ${badges.length}`}
+        </button>
+      )}
     </section>
   );
 }
