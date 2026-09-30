@@ -4,6 +4,11 @@
 
 **Try it:** [warmup-assembly.vercel.app](https://warmup-assembly.vercel.app). It needs a microphone, and works on a phone speaker too.
 
+<p>
+  <img src="docs/screenshots/live-room.png" width="76%" alt="Ordering a coffee with Jess. A gauge around her portrait shows how interested she is, chips below it say why it moved, her words appear as captions, and your goals are ticked off on the left.">
+  <img src="docs/screenshots/live-phone.png" width="22%" alt="The same conversation on a phone.">
+</p>
+
 Built for the AssemblyAI Voice Agent Hackathon (September 2026) on AssemblyAI's Voice Agent API (which hears you with the new Universal-3.6 Pro Realtime), Universal-3.5 Pro and LLM Gateway.
 
 ## What it does
@@ -24,12 +29,17 @@ Seven scenes on a five-level ladder, from low stakes to the moments people dread
 
 **Afterwards,** the replay shows how their interest moved, how you sounded (response time, filler words, pace, pauses), coach notes with one thing to try next, and the moments that mattered. **Try this moment again** replays one: the persona says the same line, remembering everything before it, and you answer differently.
 
+<p>
+  <img src="docs/screenshots/replay.png" width="39%" alt="The replay: how Jess's interest moved through the conversation, with each of your turns, what it did to the gauge, and a button to hear it.">
+  <img src="docs/screenshots/moments.png" width="59%" alt="Moments to replay: a great moment, a missed chance and an awkward one, each with a line you could say instead and a Try this moment again button.">
+</p>
+
 ## How it uses AssemblyAI
 
 | Product | Used for |
 | --- | --- |
 | **Voice Agent API** | One WebSocket session per conversation, opened with a temporary token so the key stays on the server. It hears you with Universal-3.6 Pro Realtime. `session.update` changes the persona's mood as their interest moves, and keeps the host quiet while you give a talk. `reply.create` makes the persona leave or wrap up. Word timings from `transcript.agent.delta` sync the captions to the voice. |
-| **Sessions API** | The two-channel recording (you on the left, the persona on the right), ready as soon as the session ends. |
+| **Sessions API** | The two-channel recording (you on the left, the persona on the right), ready a few seconds after the session ends. |
 | **Universal-3.5 Pro** | Transcribes the recording with `multichannel` and `disfluencies`, so every um, gap and pause is measured from word timings. |
 | **LLM Gateway** | Writes the coach notes from the transcript and metrics. |
 
@@ -37,17 +47,36 @@ What we learned building it, with measurements, limits and workarounds: [docs/fi
 
 ## How it works
 
-```
-Browser (Next.js client)                              AssemblyAI
-─────────────────────────────────────────────────     ─────────────────────────────────
-mic → AudioWorklet (resample to 24 kHz PCM16) ──────► Voice Agent API (WebSocket)
-speaker ◄── <audio> ◄── local WebRTC ◄── worklet ◄──────  persona voice + events
-engagement model runs after every turn ──session.update / reply.create──►
-        │
-        └─ session ends → /report/[id]
-             POST /api/analysis ──► Sessions API: recording URL ──► Universal-3.5 Pro
-             GET  /api/analysis/:id ◄── words, speakers, timings (multichannel + disfluencies)
-             POST /api/coach ─────────────────────────────────────► LLM Gateway
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    participant B as Browser
+    participant S as Warmup server
+    participant V as Voice Agent API
+    participant R as Sessions API
+    participant U as Universal-3.5 Pro
+    participant L as LLM Gateway
+
+    Note over B,V: During the conversation
+    B->>S: GET /api/token
+    S->>V: Mint a temporary token (the API key stays on the server)
+    S-->>B: Token
+    B->>V: Open the WebSocket, stream the mic as 24 kHz PCM
+    V-->>B: The persona's voice, captions with word timings, turn events
+    Note over B: After every turn, the interest gauge moves
+    B->>V: session.update: a new mood as their interest moves
+    B->>V: reply.create: they wrap up or leave
+    B->>V: session.end
+
+    Note over B,L: Afterwards, on the report page
+    B->>S: POST /api/analysis
+    S->>R: Get the two-channel recording
+    S->>U: Transcribe it with multichannel and disfluencies
+    B->>S: GET /api/analysis/:id
+    S-->>B: Words with speakers and timings, for the metrics
+    B->>S: POST /api/coach
+    S->>L: Transcript and metrics
+    S-->>B: Coach notes
 ```
 
 The server is a few route handlers that hold the API key. They refuse calls that don't come from the app's own page (Vercel BotID) and limit how often each network can start a session, so the public demo needs no login. Practice history stays in the browser, and there is no database. The persona's voice plays through an AudioWorklet, so its 10 ms chunks join without clicks, and through a WebRTC connection inside the page, so phones cancel its echo on speaker. The findings explain both.
