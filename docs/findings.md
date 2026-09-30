@@ -35,9 +35,9 @@ Findings from building Warmup on AssemblyAI's Voice Agent API, Sessions API, Uni
 
 **On a phone speaker the agent heard itself.** The docs say browser clients work hands-free because `getUserMedia` cancels echo. That holds on desktop Chrome, which cancels everything it plays. On the phone we tested, though, the persona's voice (played through Web Audio) reached the mic, and the agent cut itself off on every reply. A simulation reproduces it: 9 cut-offs in a row. Two fixes now make it work on that phone:
 - The voice goes through a WebRTC connection inside the page and plays from an `<audio>` element. That makes it call audio, which is what phone browsers reliably cancel.
-- If echo still gets through, a guard mutes the mic while the persona talks, and the room says so.
+- If echo still gets through, a guard mutes the mic while the persona talks, and the room says so. It decides during the greeting, while the mic is muted anyway, by checking whether the mic level rises and falls with the voice being played. It keeps checking afterwards, in case headphones come out.
 
-We haven't yet recorded which of the two did the job on that phone. (`lib/voice/audio.ts`, `lib/voice/echo.ts`)
+In the simulation, the guard took the cut-offs from 9 to none, and without echo it keeps the mic open, so interrupting still works. We haven't yet recorded which of the two fixes did the job on that phone. (`lib/voice/audio.ts`, `lib/voice/echo.ts`)
 
 **Agent audio arrives in 10 ms chunks, about 110 ms ahead of real time.** Every `reply.audio` event carried exactly 10 ms (240 samples at 24 kHz), 100 a second, and the server keeps roughly 110 ms queued ahead of playback. Scheduling each chunk as its own `AudioBufferSourceNode` in a 44.1 or 48 kHz context clicked at the joins, because the browser resamples each buffer on its own. Rendering a real reply in Chromium, 130 of 372 joins glitched at 44.1 kHz, with spikes up to 0.8 of full scale, and 31 did at 48 kHz. On a MacBook it sounded like crackling. A playback AudioWorklet that resamples the stream continuously gives output identical, sample for sample, to one long buffer. (`public/worklets/player-processor.js`, `scripts/player-check.mjs`)
 
