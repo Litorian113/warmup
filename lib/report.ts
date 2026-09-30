@@ -1,17 +1,10 @@
 // Client-side report pipeline: transcribe the session recording, compute metrics, get coach notes.
+import { apiError, json } from "./api";
 import type { CoachRequest } from "./coach";
 import { ANALYSIS_VERSION, computeMetrics, mmss, scriptForPrompt, toTurns, toUtterances } from "./metrics";
 import type { Analysis, CoachReport, Metrics, SessionRecord } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function json(res: Response) {
-  try {
-    return await res.json();
-  } catch {
-    return {};
-  }
-}
 
 export async function runAnalysis(rec: SessionRecord, signal: AbortSignal): Promise<Analysis> {
   let transcriptId: string | null = null;
@@ -25,7 +18,7 @@ export async function runAnalysis(rec: SessionRecord, signal: AbortSignal): Prom
     const j = await json(res);
     if (res.ok) transcriptId = j.transcriptId;
     else if (res.status === 409) await sleep((j.retryAfter ?? 5) * 1000);
-    else throw new Error(j.error ?? `Couldn't start the transcription (${res.status}).`);
+    else throw new Error(apiError(res, j, "The recording couldn't be analyzed"));
   }
   if (!transcriptId) throw new Error("The recording wasn't ready in time. Reload this page in a minute.");
 
@@ -33,7 +26,7 @@ export async function runAnalysis(rec: SessionRecord, signal: AbortSignal): Prom
     await sleep(i === 0 ? 3000 : 2000);
     const res = await fetch(`/api/analysis/${transcriptId}`, { signal, cache: "no-store" });
     const j = await json(res);
-    if (!res.ok) throw new Error(j.error ?? `Transcription failed (${res.status}).`);
+    if (!res.ok) throw new Error(apiError(res, j, "The transcription failed"));
     if (j.status === "completed") {
       const utterances = toUtterances({ id: transcriptId, utterances: j.utterances });
       return { transcriptId, utterances, metrics: computeMetrics(utterances), v: ANALYSIS_VERSION };
@@ -84,5 +77,5 @@ export async function fetchCoach(rec: SessionRecord, signal: AbortSignal): Promi
   const res = await fetch("/api/coach", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal });
   const j = await json(res);
   if (res.ok && j.report) return { report: j.report };
-  return { error: j.error ?? `The AI coach is unavailable (${res.status}).`, retryAfter: res.status === 429 ? (j.retryAfter ?? 60) : undefined };
+  return { error: apiError(res, j, "The AI coach is unavailable"), retryAfter: res.status === 429 ? (j.retryAfter ?? 60) : undefined };
 }

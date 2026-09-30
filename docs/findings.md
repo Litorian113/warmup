@@ -67,7 +67,9 @@ In the simulation, the guard took the cut-offs from 9 to none, and without echo 
 
 **Audio has to arrive in real time.** Sending `input.audio` faster than real time is an `audio_rate_violation`, so scripts that stream recorded audio pace it.
 
-**Tokens keep the key off the client, and auth headers differ by product.** The server mints a single-use token (`expires_in_seconds: 60` to connect, `max_session_duration_seconds: 600` to cap the session), and the browser only ever sees the token. The token endpoint wants `Authorization: Bearer <key>`. Our calls to the Sessions API, pre-recorded STT and LLM Gateway send the raw key.
+**Tokens keep the key off the client, and auth headers differ by product.** The server mints a single-use token (`expires_in_seconds: 60` to connect, `max_session_duration_seconds: 300` to cap the session), and the browser only ever sees the token. The token endpoint wants `Authorization: Bearer <key>`. Our calls to the Sessions API, pre-recorded STT and LLM Gateway send the raw key.
+
+**A token opens any agent, not just ours.** Our tokens carry only a connect window and a session cap. Whoever holds one sends their own `session.update`, with any prompt. So a public token route is a free voice agent for anyone who calls it. Warmup caps sessions at 5 minutes, with the persona wrapping up at 4. The token route also refuses calls that don't come from the app's page (Vercel BotID), and limits each network to 20 sessions an hour.
 
 ## Sessions API
 

@@ -1,6 +1,6 @@
 // Fast UI checks against the production build, with no voice sessions (no API cost):
 // home ladder, briefing, microphone-denied message, unknown scene, unknown replay, metrics of a
-// saved replay, mobile layout, and the live room with the Voice Agent socket mocked.
+// saved replay, mobile layout, a rate-limited start, and the live room with the Voice Agent socket mocked.
 //
 //   npm run build && node scripts/ui-checks.mjs
 import { spawn } from "node:child_process";
@@ -141,6 +141,17 @@ try {
   const overflow2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check("briefing has no horizontal scroll on a phone", overflow2 <= 0, `${overflow2}px`);
   await page.screenshot({ path: path.join(OUT, "brief-mobile.png"), fullPage: true });
+
+  // Vercel's firewall rate limit answers with its own page, not our JSON: the visitor still gets a sentence.
+  const limited = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ["microphone"] })).newPage();
+  limited.on("pageerror", (e) => errors.push(e.message));
+  await limited.route("**/api/token", (r) => r.fulfill({ status: 429, contentType: "text/html", body: "<!doctype html><title>429</title><h1>Too Many Requests</h1>" }));
+  await limited.goto(`${BASE}/practice/cafe`, { waitUntil: "networkidle" });
+  await limited.getByRole("button", { name: "Start talking" }).click();
+  await limited.waitForSelector(".notice", { timeout: 10000 }).catch(() => {});
+  const limitedNotice = (await limited.textContent(".notice").catch(() => "")) ?? "";
+  check("a firewall rate limit reads as a clear message", /more than the demo allows/.test(limitedNotice) && !/[<>]/.test(limitedNotice), limitedNotice.slice(0, 70));
+  await limited.context().close();
 
   // The live room, with a mocked Voice Agent socket: Jess greets you, you follow up on what she said.
   const room = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ["microphone"] })).newPage();

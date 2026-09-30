@@ -50,7 +50,7 @@ engagement model runs after every turn ──session.update / reply.create──
              POST /api/coach ─────────────────────────────────────► LLM Gateway
 ```
 
-The server is a few route handlers that hold the API key. Practice history stays in the browser, and there is no database. The persona's voice plays through an AudioWorklet, so its 10 ms chunks join without clicks, and through a WebRTC connection inside the page, so phones cancel its echo on speaker. The findings explain both.
+The server is a few route handlers that hold the API key. They refuse calls that don't come from the app's own page (Vercel BotID) and limit how often each network can start a session, so the public demo needs no login. Practice history stays in the browser, and there is no database. The persona's voice plays through an AudioWorklet, so its 10 ms chunks join without clicks, and through a WebRTC connection inside the page, so phones cancel its echo on speaker. The findings explain both.
 
 The interest gauge follows transparent rules (questions, follow-ups, sharing, answer length, response time, interruptions), so every change can be explained. The personas are a full LLM and react to meaning too.
 

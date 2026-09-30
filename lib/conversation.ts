@@ -513,8 +513,8 @@ export class Conversation {
       }
     }
 
-    // Conversations that run long get wrapped up by the persona.
-    if (!this.wrapAsked && now > (this.scene.kind === "talk" ? 330 : 360)) {
+    // Conversations that run long get wrapped up by the persona, before the session's 5-minute cap.
+    if (!this.wrapAsked && now > (this.scene.kind === "talk" ? 250 : 240)) {
       this.wrapAsked = true;
       this.endOnNextReply = "time-up";
       this.agent.reply("You need to go now. Wrap up naturally in one short sentence and say goodbye.");

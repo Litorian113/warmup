@@ -1,4 +1,5 @@
 // Server-only AssemblyAI helpers. The API key never leaves the server.
+import { checkBotId } from "botid/server";
 
 export function apiKey() {
   const key = process.env.ASSEMBLY_KEY ?? process.env.ASSEMBLYAI_API_KEY;
@@ -32,9 +33,16 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function mintAgentToken() {
   const url = new URL("https://agents.assemblyai.com/v1/token");
   url.searchParams.set("expires_in_seconds", "60");
-  url.searchParams.set("max_session_duration_seconds", "600"); // hard cap: 10 minutes per practice session
+  // Hard cap per practice session, so a token is worth little to anyone who isn't practicing. The
+  // persona wraps up a minute before it (lib/conversation.ts).
+  url.searchParams.set("max_session_duration_seconds", "300");
   const res = await fetch(url, { headers: { Authorization: `Bearer ${apiKey()}` }, cache: "no-store" });
-  if (!res.ok) throw new HttpError(502, `AssemblyAI refused the token request (${res.status}).`);
+  if (!res.ok) {
+    console.error(`[token] AssemblyAI answered ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (res.status === 429) throw new HttpError(503, "More people are practicing right now than the voice service allows at once. Try again in a minute.", 60);
+    if ([401, 402, 403].includes(res.status)) throw new HttpError(503, "The voice service isn't accepting new sessions from this demo right now. Try again later.");
+    throw new HttpError(502, "The voice service didn't answer. Try again in a moment.");
+  }
   return (await res.json()).token as string;
 }
 
@@ -135,14 +143,48 @@ export async function chat(messages: { role: "system" | "user"; content: string 
   }
 }
 
-/** Simple per-IP limiter so a public demo can't be used to burn credits. */
+// ---------- Abuse protection for the public demo ----------
+// No login: BotID refuses calls that don't come from the app's own page, and a per-IP limit caps
+// the rest. The limit lives in each server instance's memory, so it's a backstop; the Vercel
+// firewall's rate limit rule is the one that holds across instances.
+
+/** Refuses scripted calls, with BotID's invisible browser check. It only works on Vercel, so
+ *  elsewhere (tests, the phone server) everyone passes, and BOTID_SIMULATE=BAD-BOT plays a bot. */
+export async function requireBrowser(consequence: string) {
+  let isBot = process.env.BOTID_SIMULATE === "BAD-BOT";
+  if (process.env.VERCEL) {
+    try {
+      isBot = (await checkBotId()).isBot;
+    } catch (e) {
+      // If the check itself breaks (say, the project's OIDC token is missing), let visitors in
+      // rather than lock everyone out; the rate limit still applies.
+      console.error("[botid] check failed, letting the request through:", e);
+    }
+  }
+  if (isBot)
+    throw new HttpError(
+      403,
+      `Warmup couldn't confirm this came from its page in a browser, so ${consequence}. Reload the page and try again. If an extension blocks scripts here, allow them for this site.`,
+    );
+}
+
+/** "about 14 minutes", for a wait in seconds. */
+export const waitText = (s: number) => {
+  const m = Math.max(1, Math.ceil(s / 60));
+  return m === 1 ? "about a minute" : `about ${m} minutes`;
+};
+
 const hits = new Map<string, number[]>();
-export function rateLimit(req: Request, bucket: string, max: number, windowMs: number) {
+/** Per-IP limit. `tooMany` gets the wait ("about 14 minutes") and says what happened. */
+export function rateLimit(req: Request, bucket: string, max: number, windowMs: number, tooMany: (wait: string) => string) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
   const key = `${bucket}:${ip}`;
   const now = Date.now();
   const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
-  if (recent.length >= max) throw new HttpError(429, "Too many sessions from this network. Take a breather and try again soon.", Math.ceil((windowMs - (now - recent[0])) / 1000));
+  if (recent.length >= max) {
+    const retryAfter = Math.ceil((windowMs - (now - recent[0])) / 1000);
+    throw new HttpError(429, tooMany(waitText(retryAfter)), retryAfter);
+  }
   recent.push(now);
   hits.set(key, recent);
 }

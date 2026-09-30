@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withBotId } from "botid/next/config";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -6,4 +7,5 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["100.*.*.*", "*.ts.net", "devbox"],
 };
 
-export default nextConfig;
+// BotID's challenge is served from the app's own origin, so blockers treat it as first-party.
+export default withBotId(nextConfig);

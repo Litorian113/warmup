@@ -1,5 +1,5 @@
 import { coachMessages, normalizeGoals, parseCoach, type CoachRequest } from "@/lib/coach";
-import { chat, COACH_MODEL, errorResponse, HttpError } from "@/lib/server/aai";
+import { chat, COACH_MODEL, errorResponse, HttpError, rateLimit, requireBrowser } from "@/lib/server/aai";
 import { sceneById } from "@/lib/scenarios";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,8 @@ export const maxDuration = 60; // waits out a short LLM Gateway rate limit, then
 // Written feedback from an LLM via AssemblyAI's LLM Gateway (model set by COACH_MODEL).
 export async function POST(req: Request) {
   try {
+    rateLimit(req, "coach", 40, 60 * 60 * 1000, (wait) => `Your network has asked for a lot of coach notes in the last hour, more than the demo allows. Reload this page in ${wait} for detailed notes.`);
+    await requireBrowser("no coach notes were written");
     const body = (await req.json()) as CoachRequest;
     const scene = sceneById(body.sceneId);
     const persona = scene?.personas.find((p) => p.name === body.personaName) ?? scene?.personas[0];

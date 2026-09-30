@@ -1,6 +1,7 @@
 // Thin client for AssemblyAI's Voice Agent API WebSocket.
 // The browser never sees the API key: /api/token mints a single-use temporary token.
 import { toBase64 } from "./audio";
+import { apiError, json } from "../api";
 
 export type AgentEvent = { type: string } & Record<string, any>;
 
@@ -21,8 +22,9 @@ export class AgentConnection {
 
   async connect(session: SessionConfig) {
     const res = await fetch("/api/token", { cache: "no-store" });
-    if (!res.ok) throw new Error(`Couldn't get a session token (${res.status}). ${await res.text()}`);
-    const { token } = await res.json();
+    const body = await json(res);
+    if (!res.ok || !body.token) throw new Error(apiError(res, body, "The session couldn't start"));
+    const { token } = body;
 
     const ws = new WebSocket(`wss://agents.assemblyai.com/v1/ws?token=${encodeURIComponent(token)}`);
     this.ws = ws;

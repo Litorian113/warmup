@@ -24,7 +24,7 @@ export function outcomeText(outcome: Outcome, p: Persona | undefined, kind: Scen
     case "wrapped-up":
       return kind === "talk" ? "You finished the talk and the Q&A." : "You wrapped up the conversation yourself.";
     case "time-up":
-      return "The conversation ran out of time.";
+      return "Practice sessions last about four minutes, so this one wrapped up there.";
     case "dropped":
       return "The connection dropped partway through.";
     default:
