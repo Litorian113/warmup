@@ -107,6 +107,8 @@ export default function Home() {
             .
           </p>
         </div>
+        {/* hills and plants that close the page */}
+        <img className="footer-divider" src="/backdrops/Bottom-Final-Divider.svg" alt="" width={2169} height={449} aria-hidden="true" />
       </footer>
     </>
   );

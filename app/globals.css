@@ -909,6 +909,29 @@ body:has(.home) .site-footer {
   background: var(--ground);
 }
 
+/* The last divider sits under the footer text and ends the page; it's transparent at the top,
+   so it rises a little beside the text, with plants at the edges. It's 1px wider than the page
+   because its drawing stops 1px short of its right edge. */
+.footer-divider {
+  display: block;
+  width: calc(100% + 2px);
+  max-width: none;
+  height: auto;
+  margin: -5% 0 0 -1px;
+  pointer-events: none;
+}
+
+.site-footer:has(.footer-divider) {
+  position: relative;
+  overflow: hidden;
+}
+
+.site-footer:has(.footer-divider) .site-footer__inner {
+  position: relative;
+  z-index: 1;
+  padding-bottom: 0;
+}
+
 .temp-dot {
   width: 10px;
   height: 10px;
@@ -2751,6 +2774,9 @@ body:has(.home) .site-footer {
 }
 
 @media (max-width: 640px) {
+  .footer-divider {
+    margin-top: 12px;
+  }
   .history__item {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 12px 14px;
