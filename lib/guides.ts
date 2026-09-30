@@ -1,6 +1,8 @@
 // Scene guides: good ways into, through and out of each conversation, with a line to try.
 // Written per scene against the persona's bio and the engagement rules in lib/engagement.ts, so
 // the example lines score the way the tips promise. Icons are OpenMoji code points (public/emoji/).
+import { contentWords, words } from "./engagement";
+import type { Scene } from "./scenarios";
 
 export interface GuideTip {
   emoji: string;
@@ -486,3 +488,34 @@ export const GUIDES: Record<string, Guide> = {
     ],
   },
 };
+
+// ---------- which tips are still worth showing after a session ----------
+
+const stem = (w: string) => w.replace(/'s$/, "").replace(/(ing|ed|es|s)$/, "");
+
+/** You already said something like this line: most of its key words turn up in one of your turns. */
+function alreadySaid(line: string, yours: string[]) {
+  const key = contentWords(line).map(stem);
+  if (!key.length) return false;
+  return yours.some((said) => {
+    const have = new Set(contentWords(said).map(stem));
+    return key.filter((w) => have.has(w)).length / key.length >= 0.5;
+  });
+}
+
+/** The tip's line would reach a goal you already reached, so you don't need it this time. */
+function reachesDoneGoal(line: string, scene: Scene, done: Record<string, boolean>) {
+  return scene.goals.some((g) => {
+    if (!done[g.id]) return false;
+    const c = g.check;
+    if (c.kind === "regex") return c.who === "you" && c.re.test(line);
+    if (c.kind === "words") return c.who === "you" && words(line).length >= c.min && (!c.re || c.re.test(line));
+    return false; // questions, follow-ups and turn counts fit almost any line, so they don't decide
+  });
+}
+
+/** The titles of the tips you already said or used in this session. */
+export function usedTips(guide: Guide, scene: Scene, yours: string[], done: Record<string, boolean>): Set<string> {
+  const all = [...guide.openers, ...guide.during, ...guide.exits];
+  return new Set(all.filter((t) => alreadySaid(t.line, yours) || reachesDoneGoal(t.line, scene, done)).map((t) => t.title));
+}

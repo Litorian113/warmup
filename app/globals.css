@@ -1201,6 +1201,43 @@ body:has(.home) .site-footer {
   box-shadow: 0 16px 34px -26px rgba(60, 50, 90, 0.45);
 }
 
+/* corner marker: a green check for moves you used, an amber mark for ones to try next */
+.guide__card {
+  position: relative;
+}
+
+.guide__mark {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.guide__mark svg {
+  width: 16px;
+  height: 16px;
+}
+
+.guide__mark--used {
+  background: var(--good);
+  color: #fff;
+  box-shadow: 0 6px 14px -8px rgba(19, 119, 93, 0.8);
+}
+
+.guide__mark--open {
+  background: var(--meh-pill);
+  color: var(--meh);
+  box-shadow: inset 0 0 0 2px #efd9a8;
+}
+
+.guide__card.is-used {
+  background: rgba(247, 251, 248, 0.9);
+}
+
 .guide__group {
   display: inline-flex;
   align-items: center;
@@ -2316,8 +2353,174 @@ body:has(.home) .site-footer {
 
 .report {
   display: grid;
-  gap: 48px;
+  gap: 88px;
   padding-top: 16px;
+}
+
+/* ---------- results page: the home page's world carries on ---------- */
+
+.report-page {
+  position: relative;
+  overflow-x: clip;
+  padding-bottom: 76px; /* room for the fixed recording bar */
+  background: linear-gradient(180deg, var(--paper) 0%, #f5f2ee 40%, var(--ground) 100%);
+}
+
+.report-page > .wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.report-page__cloud-a {
+  top: 10px;
+  right: 3%;
+  width: clamp(130px, 14vw, 210px);
+}
+
+.report-page__cloud-b {
+  top: 420px;
+  left: -50px;
+  width: clamp(110px, 12vw, 170px);
+  opacity: 0.55;
+}
+
+.report__head {
+  position: relative;
+  isolation: isolate;
+}
+
+.report__blob {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.report__blob--peach {
+  width: 260px;
+  top: 40px;
+  right: 34%;
+  opacity: 0.8;
+}
+
+.report__blob--lilac {
+  width: 200px;
+  bottom: -60px;
+  right: -60px;
+}
+
+/* the hills that end the first half, and the ground the numbers sit on */
+.report-page__divider {
+  position: relative;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: clamp(-40px, -2vw, 0px);
+  pointer-events: none;
+}
+
+.report-page__ground {
+  display: flow-root;
+  padding-top: 88px;
+}
+
+.report--lower {
+  padding-top: 0;
+}
+
+.report-page__bottom {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 24px;
+  background: var(--ground);
+  pointer-events: none;
+}
+
+.report__again-icon {
+  width: 18px;
+  flex: none;
+}
+
+.report__next-face.avatar {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  font-size: 1rem;
+  box-shadow: 0 0 0 2px #fff, 0 6px 14px -8px rgba(60, 40, 20, 0.5);
+}
+
+/* the coach says the one thing to work on */
+.coach-says {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.coach-says__coach {
+  display: block;
+  width: 150px;
+  height: auto;
+  animation: coach-bob 4s ease-in-out infinite;
+}
+
+@keyframes coach-bob {
+  50% {
+    transform: translateY(-5px) rotate(-2deg);
+  }
+}
+
+/* a speech bubble: white with a lilac edge, its tail pointing left at the coach */
+.coach-says .next-step {
+  position: relative;
+  margin: 0;
+  padding: 20px 26px 22px;
+  border-radius: 28px;
+  background: #fff;
+  border: 2px solid #d9d4f5;
+  color: var(--ink);
+  box-shadow: 0 18px 40px -28px rgba(60, 50, 120, 0.55);
+}
+
+.coach-says .next-step::before,
+.coach-says .next-step::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -34px;
+  border-style: solid;
+  border-width: 13px 34px 13px 0;
+  border-color: transparent #d9d4f5 transparent transparent;
+  transform: translateY(-50%);
+}
+
+.coach-says .next-step::after {
+  left: -29px;
+  border-width: 11px 30px 11px 0;
+  border-color: transparent #fff transparent transparent;
+}
+
+.coach-says .next-step b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #6b5bd2;
+}
+
+.coach-says .next-step p {
+  --c: 0.7;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-says__coach {
+    animation: none;
+  }
 }
 
 /* The verdict on the left; the goals and what to do next on the right. */
@@ -2337,6 +2540,20 @@ body:has(.home) .site-footer {
 .report__head > .link-back,
 .report__head > .report__meta {
   grid-column: 1 / -1;
+}
+
+/* the verdict and its outcome line stay together, at the bottom of the goals card's height */
+.report__head {
+  grid-template-rows: auto auto 1fr auto;
+}
+
+.report__headline {
+  grid-row: 3;
+  align-self: end;
+}
+
+.report__outcome {
+  grid-row: 4;
 }
 
 .report__goals {
@@ -2576,6 +2793,59 @@ body:has(.home) .site-footer {
 
 .chart__point:focus-visible circle.chart__dot {
   stroke: var(--focus);
+}
+
+/* the coach's moments: numbered flags standing on the curve */
+.chart__stem {
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.chart__flag {
+  filter: drop-shadow(0 4px 6px rgba(29, 36, 51, 0.25));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.15s ease;
+}
+
+.chart__moment:hover .chart__flag,
+.chart__moment:focus-visible .chart__flag {
+  transform: scale(1.15);
+}
+
+.chart__moment:focus-visible .chart__flag {
+  stroke: var(--focus);
+}
+
+.chart__legend {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+.chart__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chart__legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--rule);
+}
+
+.chart__legend .chart__legend-hint {
+  color: var(--ink-3);
 }
 
 .tooltip {
@@ -3007,47 +3277,89 @@ body:has(.home) .site-footer {
   }
 }
 
-/* coach notes */
+/* coach notes: each point is its own card, in a green column and an amber one */
 .notes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 28px 44px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 22px 28px;
+  align-items: start;
 }
 
 .notes__col {
   display: grid;
-  gap: 20px;
+  gap: 12px;
   align-content: start;
 }
 
 .note {
   display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(214, 220, 230, 0.8);
+  box-shadow: 0 14px 30px -26px rgba(60, 50, 90, 0.45);
+}
+
+.note__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.note__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.note--good .note__icon {
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.note--try .note__icon {
+  background: var(--meh-pill);
+  color: var(--meh);
+}
+
+.note__body {
+  display: grid;
   gap: 6px;
-  align-content: start;
+  min-width: 0;
+}
+
+.note__body > p:not(.note__try) {
+  color: var(--ink-2);
+  line-height: 1.5;
 }
 
 .note__title {
   --c: 0.7;
-  font-size: 1.15rem;
-  font-weight: 720;
+  font-size: 1.12rem;
+  font-weight: 750;
   line-height: 1.25;
 }
 
+/* the suggested line as a small speech bubble of your own */
 .note__try {
-  --c: 0.7;
-  margin-top: 4px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: #f5f6fa;
+  --c: 0.8;
+  margin-top: 6px;
+  padding: 10px 14px;
+  border-radius: 16px 16px 16px 4px;
+  background: #f5f3fb;
   line-height: 1.45;
 }
 
 .note__try-label {
   display: block;
   --c: 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 650;
-  color: var(--ink-2);
+  color: #6b5bd2;
 }
 
 .next-step {
@@ -3124,8 +3436,37 @@ body:has(.home) .site-footer {
 }
 
 .moment__time {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
   font-variant-numeric: tabular-nums;
   min-height: 34px;
+}
+
+/* the same number as the moment's flag on the curve */
+.moment__num {
+  --c: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 0 0 3px #fff, 0 6px 12px -6px rgba(29, 36, 51, 0.4);
+}
+
+.moment__num--great {
+  background: var(--good);
+}
+
+.moment__num--missed {
+  background: var(--meh);
+}
+
+.moment__num--awkward {
+  background: var(--bad);
 }
 
 .moment__quote {
@@ -3251,10 +3592,15 @@ body:has(.home) .site-footer {
   padding: 0 3px;
 }
 
+/* The recording always sits at the bottom of the screen while you read the replay. */
 .player {
-  position: sticky;
-  bottom: 12px;
-  z-index: 5;
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(calc(var(--max) - 2 * clamp(16px, 4vw, 40px)), calc(100% - 32px));
+  z-index: 20;
+  box-shadow: 0 16px 34px -20px rgba(29, 36, 51, 0.45);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -3371,6 +3717,19 @@ body:has(.home) .site-footer {
 }
 
 @media (max-width: 640px) {
+  .coach-says {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .coach-says__coach {
+    width: 88px;
+  }
+  .coach-says .next-step p {
+    font-size: 1.05rem;
+  }
+  .report__blob {
+    display: none;
+  }
   .footer-divider {
     margin-top: 12px;
   }

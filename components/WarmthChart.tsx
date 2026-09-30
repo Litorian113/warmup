@@ -63,13 +63,30 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
   const data: WarmthPoint[] = [{ t: 0, value: start, delta: 0, signals: [], said: "" }, ...points];
   const T = Math.max(duration, data[data.length - 1].t + 5, 20);
   const narrow = w < 520;
-  const H = narrow ? 240 : 280;
-  const m = { top: 14, right: 14, bottom: 52, left: narrow ? 84 : 104 };
+  const pinned = moments.length > 0;
+  // Room above the plot for the coach's numbered flags, and none below it any more.
+  const H = (narrow ? 230 : 270) + (pinned ? 50 : 0);
+  const m = { top: pinned ? 64 : 14, right: 14, bottom: 34, left: narrow ? 84 : 104 };
   const iw = w - m.left - m.right;
   const ih = H - m.top - m.bottom;
   const x = (t: number) => m.left + (Math.min(t, T) / T) * iw;
   const y = (v: number) => m.top + (1 - v / 100) * ih;
   const bands = talk ? TALK_BANDS : CONVO_BANDS;
+  /** The curve's value at time t (it runs straight between turns, then flat to the end). */
+  const valueAt = (t: number) => {
+    for (let i = 1; i < data.length; i++) {
+      const a = data[i - 1];
+      const b = data[i];
+      if (t <= b.t) return b.t === a.t ? b.value : a.value + ((b.value - a.value) * (t - a.t)) / (b.t - a.t);
+    }
+    return data[data.length - 1].value;
+  };
+  // Flags that would touch get staggered onto a second, higher row.
+  const flagRow: number[] = [];
+  moments.forEach((mo, i) => {
+    const prev = moments.findIndex((o, j) => j < i && Math.abs(x(o.at) - x(mo.at)) < 30 && flagRow[j] === 0);
+    flagRow[i] = prev >= 0 ? 1 : 0;
+  });
 
   const line = [...data, { ...data[data.length - 1], t: T }].map((d, i) => `${i ? "L" : "M"}${x(d.t).toFixed(1)},${y(d.value).toFixed(1)}`).join("");
   const area = `${line}L${x(T).toFixed(1)},${y(0)}L${x(0)},${y(0)}Z`;
@@ -167,11 +184,14 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
           );
         })}
 
-        {/* coach moments, pinned under the timeline */}
+        {/* The coach's moments, as numbered flags standing on the curve. The number matches the
+            moment in "Moments to replay"; click a flag to hear that moment. */}
         {moments.map((mo, i) => {
           const active = isPlayingFrom(playback, mo.at);
           const cx = x(mo.at);
-          const cy = y(0) + 36;
+          const cy = y(valueAt(mo.at));
+          const fy = flagRow[i] ? 16 : 40;
+          const color = KIND[mo.kind].color;
           return (
             <g
               key={i}
@@ -179,25 +199,41 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
               tabIndex={0}
               role="button"
               aria-pressed={active}
-              aria-label={`${KIND[mo.kind].label} at ${mmss(mo.at)}: ${mo.comment}. ${active ? "Pause" : "Play"}.`}
+              aria-label={`Moment ${i + 1}, ${KIND[mo.kind].label.toLowerCase()} at ${mmss(mo.at)}: ${mo.comment}. ${active ? "Pause" : "Play"}.`}
               onClick={() => onSeek?.(mo.at)}
               onKeyDown={(e) => key(e, mo.at)}
             >
-              <title>{`${KIND[mo.kind].label} at ${mmss(mo.at)}. Click to ${active ? "pause" : "play"}.`}</title>
-              <circle cx={cx} cy={cy} r={14} fill="transparent" />
-              {active && <circle className="chart__pulse" cx={cx} cy={cy} r={11} style={{ stroke: KIND[mo.kind].color }} />}
-              <circle className="chart__marker" cx={cx} cy={cy} r={active ? 9 : 7} fill={KIND[mo.kind].color} stroke="#fff" strokeWidth={2} />
+              <title>{`${i + 1}. ${KIND[mo.kind].label} at ${mmss(mo.at)}. Click to ${active ? "pause" : "play"}.`}</title>
+              <line className="chart__stem" x1={cx} x2={cx} y1={fy + 12} y2={cy} style={{ stroke: color }} />
+              <circle cx={cx} cy={cy} r={5} fill="#fff" stroke={color} strokeWidth={2.5} />
+              <circle cx={cx} cy={fy} r={18} fill="transparent" />
+              {active && <circle className="chart__pulse" cx={cx} cy={fy} r={14} style={{ stroke: color }} />}
+              <circle className="chart__flag" cx={cx} cy={fy} r={12} fill={color} stroke="#fff" strokeWidth={2.5} />
               {active ? (
-                <path d={`M${cx - 3} ${cy - 3.5}h2v7h-2zM${cx + 1} ${cy - 3.5}h2v7h-2z`} fill="#fff" />
+                <path d={`M${cx - 3.5} ${fy - 4}h2.5v8h-2.5zM${cx + 1} ${fy - 4}h2.5v8h-2.5z`} fill="#fff" />
               ) : (
-                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize="9" fontWeight="800" fill="#fff">
-                  {mo.kind === "great" ? "✓" : "!"}
+                <text x={cx} y={fy + 0.5} textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill="#fff">
+                  {i + 1}
                 </text>
               )}
             </g>
           );
         })}
       </svg>
+
+      {pinned && (
+        <ul className="chart__legend" aria-label="What the flags mean">
+          {(["great", "missed", "awkward"] as const)
+            .filter((k) => moments.some((mo) => mo.kind === k))
+            .map((k) => (
+              <li key={k}>
+                <span className="chart__legend-dot" style={{ background: KIND[k].color }} aria-hidden="true" />
+                {KIND[k].label}
+              </li>
+            ))}
+          <li className="chart__legend-hint">Numbered flags are the coach&rsquo;s moments below. Click one to hear it.</li>
+        </ul>
+      )}
 
       {hp && (
         <div className="tooltip" style={{ left: tipLeft, top: 4 }} role="presentation">

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCelebration } from "./Badges";
-import { Sparks } from "./Decor";
-import Emoji from "./Emoji";
+import { Blob, Cloud, Sparks } from "./Decor";
 import SceneGuide from "./SceneGuide";
 import GoalList from "./GoalList";
 import WarmthChart from "./WarmthChart";
@@ -13,9 +12,9 @@ import { outcomeText, rulesCoach } from "@/lib/coach";
 import { isFiller, mmss } from "@/lib/metrics";
 import { fetchCoach, runAnalysis, upgradeAnalysis } from "@/lib/report";
 import { compareRetake, planRetake } from "@/lib/retake";
-import { SCENES, sceneById, type Scene } from "@/lib/scenarios";
+import { portraitFit, SCENES, sceneById, type Scene } from "@/lib/scenarios";
 import { badgesFrom, earnedBadges } from "@/lib/badges";
-import { GUIDES } from "@/lib/guides";
+import { GUIDES, usedTips } from "@/lib/guides";
 import { getSession, listSessions, updateSession, type Metrics, type SessionRecord } from "@/lib/store";
 
 type Status = "good" | "meh" | "bad";
@@ -163,219 +162,260 @@ export default function Report({ id }: { id: string }) {
   const goalsDone = { ...rec.goals };
   if (!talk) for (const g of coach?.goals ?? []) if (g.done) goalsDone[g.id] = true;
   const reached = scene.goals.filter((g) => goalsDone[g.id]).length;
+  // Which of the scene's tips you already said or used this time; the rest are marked to try next.
+  const yours = rec.analysis ? rec.analysis.utterances.filter((u) => u.who === "you").map((u) => u.text) : rec.lines.filter((l) => l.who === "you").map((l) => l.text);
+  const guide = GUIDES[scene.id];
+  const used = guide ? usedTips(guide, scene, yours, goalsDone) : undefined;
   const tiles = rec.analysis ? tilesFor(rec.analysis.metrics, rec, talk) : null;
   const when = new Date(rec.createdAt).toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
 
   return (
-    <div className="wrap report">
-      <header className="report__head">
-        <Link href="/#history" className="link-back">
-          ← Your practice
-        </Link>
-        <p className="report__meta">
-          {scene.title} with {persona.name}. {when}, {mmss(rec.durationSec)} long.
-          {rec.topic ? ` Topic: “${rec.topic}”.` : ""}
-        </p>
-        {coach ? (
-          <h1 className="report__headline">{coach.headline}</h1>
-        ) : (
-          <div className="skeleton" style={{ height: 96, maxWidth: 720 }} aria-label="Writing your feedback" />
-        )}
-        <p className="report__outcome">
-          {outcomeText(rec.outcome, persona, scene.kind)} {talk ? "Audience attention" : `${persona.name}'s interest`} went from{" "}
-          {rec.startWarmth} to {rec.finalWarmth}.
-        </p>
-
-        <aside className="report__goals glass-card" aria-labelledby="goals-title">
-          <Sparks className="report__goals-sparks" />
-          <div className="report__goals-head">
-            <h2 id="goals-title" className="report__goals-title">
-              Goals
-            </h2>
-            <p className="report__goals-count">
-              {reached} of {scene.goals.length} reached
-            </p>
-          </div>
-          <GoalList scene={scene} done={goalsDone} openLabel="Next time" />
-          <div className="report__actions">
-            <Link className="btn report__again" href={`/practice/${scene.id}`}>
-              <Emoji code="2728" size={26} />
-              Practice this again
-            </Link>
-            {next && (
-              <Link className="btn btn--ghost report__next" href={`/practice/${next.id}`}>
-                <Emoji code={next.emoji} size={36} />
-                <span className="report__next-text">
-                  <span className="report__next-label">Up next</span>
-                  {next.title}
-                </span>
-                <svg className="report__next-arrow" viewBox="0 0 20 20" aria-hidden="true">
-                  <path d="M4 10 H16 M11 5 L16 10 L11 15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
-            )}
-          </div>
-        </aside>
-      </header>
-
-      <BadgeCelebration badges={newBadges} />
-
-      <section className="block" aria-labelledby="curve-title">
-        <div className="block__head">
-          <h2 id="curve-title" className="h2">
-            {talk ? "How the room's attention moved" : `How ${persona.name}'s interest moved`}
-          </h2>
-          <p className="muted">
-            {talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}
+    <div className="report-page">
+      <Cloud className="decor--cloud report-page__cloud-a" />
+      <Cloud className="decor--cloud report-page__cloud-b" />
+      <div className="wrap report">
+        <header className="report__head">
+          <Blob className="report__blob report__blob--peach" shape="a" color="#fbe3d3" />
+          <Blob className="report__blob report__blob--lilac" shape="c" color="#e9e2f6" />
+          <Link href="/#history" className="link-back">
+            ← Your practice
+          </Link>
+          <p className="report__meta">
+            {scene.title} with {persona.name}. {when}, {mmss(rec.durationSec)} long.
+            {rec.topic ? ` Topic: “${rec.topic}”.` : ""}
           </p>
-        </div>
-        <div className="card">
-          <WarmthChart
-            points={rec.points}
-            start={rec.startWarmth}
-            duration={rec.durationSec}
-            moments={coach?.moments ?? []}
-            talk={talk}
-            onSeek={audioUrl ? seek : undefined}
-            playback={pb}
-            audio={audioRef}
-            youTurns={rec.analysis?.utterances.filter((u) => u.who === "you").map((u) => ({ start: u.start / 1000, end: u.end / 1000 }))}
-          />
-        </div>
-      </section>
-
-      <section className="block" aria-labelledby="coach-title">
-        <div className="block__head">
-          <h2 id="coach-title" className="h2">
-            Coach notes
-          </h2>
-          {coachNotice && (
-            <p className="progress-note small" role="status">
-              {phase === "coaching" && <span className="spinner" />} {coachNotice}
-            </p>
+          {coach ? (
+            <h1 className="report__headline">{coach.headline}</h1>
+          ) : (
+            <div className="skeleton" style={{ height: 96, maxWidth: 720 }} aria-label="Writing your feedback" />
           )}
-        </div>
-        {coach ? (
-          <>
-            {coach.nextStep && (
-              <p className="next-step">
-                <b>Your one thing for next time</b>
-                {coach.nextStep}
+          <p className="report__outcome">
+            {outcomeText(rec.outcome, persona, scene.kind)} {talk ? "Audience attention" : `${persona.name}'s interest`} went from{" "}
+            {rec.startWarmth} to {rec.finalWarmth}.
+          </p>
+
+          <aside className="report__goals glass-card" aria-labelledby="goals-title">
+            <Sparks className="report__goals-sparks" />
+            <div className="report__goals-head">
+              <h2 id="goals-title" className="report__goals-title">
+                Goals
+              </h2>
+              <p className="report__goals-count">
+                {reached} of {scene.goals.length} reached
               </p>
-            )}
-            <div className="card notes">
-              {coach.strengths.length > 0 && (
-                <div className="notes__col">
-                  <StatusLabel status="good" text="What worked" />
-                  {coach.strengths.map((s, i) => (
-                    <article key={i} className="note">
-                      <h3 className="note__title">{s.title}</h3>
-                      <p>{s.detail}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
-              {coach.improvements.length > 0 && (
-                <div className="notes__col">
-                  <StatusLabel status="meh" text="Try next time" />
-                  {coach.improvements.map((s, i) => (
-                    <article key={i} className="note">
-                      <h3 className="note__title">{s.title}</h3>
-                      <p>{s.detail}</p>
-                      {s.tryInstead && (
-                        <p className="note__try">
-                          <span className="note__try-label">You could say</span>
-                          {s.tryInstead}
-                        </p>
-                      )}
-                    </article>
-                  ))}
-                </div>
+            </div>
+            <GoalList scene={scene} done={goalsDone} openLabel="Next time" />
+            <div className="report__actions">
+              <Link className="btn report__again" href={`/practice/${scene.id}`}>
+                <svg className="report__again-icon" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M15.5 10a5.5 5.5 0 1 1-1.6-3.9M15.5 3.5v3h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Practice this again
+              </Link>
+              {next && (
+                <Link className="btn btn--ghost report__next" href={`/practice/${next.id}`}>
+                  <NextFace scene={next} />
+                  <span className="report__next-text">
+                    <span className="report__next-label">Up next</span>
+                    {next.title}
+                  </span>
+                  <svg className="report__next-arrow" viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M4 10 H16 M11 5 L16 10 L11 15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
               )}
             </div>
-          </>
-        ) : (
-          <div className="skeleton" style={{ height: 240 }} aria-label="Reading your transcript" />
-        )}
-      </section>
+          </aside>
+        </header>
 
-      {GUIDES[scene.id] && <SceneGuide guide={GUIDES[scene.id]} title="Try these next time" />}
+        <BadgeCelebration badges={newBadges} />
 
-      {coach && coach.moments.length > 0 && (
-        <section className="block" aria-labelledby="moments-title">
-          <h2 id="moments-title" className="h2">
-            Moments to replay
-          </h2>
-          <ol className="moments">
-            {coach.moments.map((mo, i) => (
-              <li key={i} className="moment" id={`moment-${i}`}>
-                <div className="moment__time">
-                  <PlayButton at={mo.at} playback={pb} onToggle={seek} disabled={!audioUrl} />
-                </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  <StatusLabel
-                    status={mo.kind === "great" ? "good" : mo.kind === "missed" ? "meh" : "bad"}
-                    text={mo.kind === "great" ? "Great moment" : mo.kind === "missed" ? "Missed chance" : "Awkward moment"}
-                  />
-                  <p className="moment__quote">“{mo.quote}”</p>
-                  <p>{mo.comment}</p>
-                  {mo.better && <p className="moment__better">You could say: “{mo.better.replace(/^[“"]|[”"]$/g, "")}”</p>}
-                  <Retake rec={rec} index={i} talk={talk} kind={mo.kind} />
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      <section className="block" aria-labelledby="sound-title">
-        <div className="block__head">
-          <h2 id="sound-title" className="h2">
-            How you sounded
-          </h2>
-          {tiles && <TileSummary tiles={tiles} />}
-        </div>
-        {tiles ? (
-          <div className="tiles">
-            {tiles.map((t) => (
-              <Tile key={t.label} {...t} />
-            ))}
-          </div>
-        ) : phase === "transcribing" ? (
-          <>
-            <p className="progress-note" role="status">
-              <span className="spinner" /> Transcribing your recording. This takes about 10 to 30 seconds.
+        <section className="block" aria-labelledby="curve-title">
+          <div className="block__head">
+            <h2 id="curve-title" className="h2">
+              {talk ? "How the room's attention moved" : `How ${persona.name}'s interest moved`}
+            </h2>
+            <p className="muted">
+              {talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}
             </p>
-            <div className="skeleton" style={{ height: 280 }} aria-hidden="true" />
-          </>
-        ) : (
-          <p className="notice">{analysisError ?? "There's no recording for this session, so speaking metrics aren't available."}</p>
+          </div>
+          <div className="card">
+            <WarmthChart
+              points={rec.points}
+              start={rec.startWarmth}
+              duration={rec.durationSec}
+              moments={coach?.moments ?? []}
+              talk={talk}
+              onSeek={audioUrl ? seek : undefined}
+              playback={pb}
+              audio={audioRef}
+              youTurns={rec.analysis?.utterances.filter((u) => u.who === "you").map((u) => ({ start: u.start / 1000, end: u.end / 1000 }))}
+            />
+          </div>
+        </section>
+
+        <section className="block" aria-labelledby="coach-title">
+          <div className="block__head">
+            <h2 id="coach-title" className="h2">
+              Coach notes
+            </h2>
+            {coachNotice && (
+              <p className="progress-note small" role="status">
+                {phase === "coaching" && <span className="spinner" />} {coachNotice}
+              </p>
+            )}
+          </div>
+          {coach ? (
+            <>
+              {coach.nextStep && (
+                <div className="coach-says">
+                  <svg className="coach-says__coach" viewBox="180 196 940 770" aria-hidden="true">
+                    <image href="/backdrops/Coach.svg" width="1254" height="1254" />
+                  </svg>
+                  <blockquote className="next-step">
+                    <b>Your one thing for next time</b>
+                    <p>{coach.nextStep}</p>
+                  </blockquote>
+                </div>
+              )}
+              <div className="notes">
+                {coach.strengths.length > 0 && (
+                  <section className="notes__col" aria-label="What worked">
+                    <StatusLabel status="good" text="What worked" />
+                    {coach.strengths.map((s, i) => (
+                      <article key={i} className="note note--good">
+                        <span className="note__icon" aria-hidden="true">
+                          <svg viewBox="0 0 16 16">
+                            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                        <div className="note__body">
+                          <h3 className="note__title">{s.title}</h3>
+                          <p>{s.detail}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </section>
+                )}
+                {coach.improvements.length > 0 && (
+                  <section className="notes__col" aria-label="Try next time">
+                    <StatusLabel status="meh" text="Try next time" />
+                    {coach.improvements.map((s, i) => (
+                      <article key={i} className="note note--try">
+                        <span className="note__icon" aria-hidden="true">
+                          <svg viewBox="0 0 16 16">
+                            <path d="M8 3v7M8 13v.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                          </svg>
+                        </span>
+                        <div className="note__body">
+                          <h3 className="note__title">{s.title}</h3>
+                          <p>{s.detail}</p>
+                          {s.tryInstead && (
+                            <p className="note__try">
+                              <span className="note__try-label">You could say</span>
+                              {s.tryInstead}
+                            </p>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </section>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="skeleton" style={{ height: 240 }} aria-label="Reading your transcript" />
+          )}
+        </section>
+
+        {guide && <SceneGuide guide={guide} used={used} title="Try these next time" />}
+
+        {coach && coach.moments.length > 0 && (
+          <section className="block" aria-labelledby="moments-title">
+            <h2 id="moments-title" className="h2">
+              Moments to replay
+            </h2>
+            <ol className="moments">
+              {coach.moments.map((mo, i) => (
+                <li key={i} className="moment" id={`moment-${i}`}>
+                  <div className="moment__time">
+                    <span className={`moment__num moment__num--${mo.kind}`} aria-label={`Moment ${i + 1}`}>
+                      {i + 1}
+                    </span>
+                    <PlayButton at={mo.at} playback={pb} onToggle={seek} disabled={!audioUrl} />
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <StatusLabel
+                      status={mo.kind === "great" ? "good" : mo.kind === "missed" ? "meh" : "bad"}
+                      text={mo.kind === "great" ? "Great moment" : mo.kind === "missed" ? "Missed chance" : "Awkward moment"}
+                    />
+                    <p className="moment__quote">“{mo.quote}”</p>
+                    <p>{mo.comment}</p>
+                    {mo.better && <p className="moment__better">You could say: “{mo.better.replace(/^[“"]|[”"]$/g, "")}”</p>}
+                    <Retake rec={rec} index={i} talk={talk} kind={mo.kind} />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
         )}
-      </section>
+      </div>
 
-      <details className="script-block">
-        <summary>
-          <h2 className="h2">The conversation</h2>
-          <span className="muted">{rec.analysis ? "Every word, with filler words highlighted." : "Live transcript from the session."}</span>
-        </summary>
-        <div className="card">
-          <Script rec={rec} name={persona.name} onSeek={audioUrl ? seek : undefined} playback={pb} />
+      <div className="report-page__ground">
+        <div className="wrap report report--lower">
+          <section className="block" aria-labelledby="sound-title">
+            <div className="block__head">
+              <h2 id="sound-title" className="h2">
+                How you sounded
+              </h2>
+              {tiles && <TileSummary tiles={tiles} />}
+            </div>
+            {tiles ? (
+              <div className="tiles">
+                {tiles.map((t) => (
+                  <Tile key={t.label} {...t} />
+                ))}
+              </div>
+            ) : phase === "transcribing" ? (
+              <>
+                <p className="progress-note" role="status">
+                  <span className="spinner" /> Transcribing your recording. This takes about 10 to 30 seconds.
+                </p>
+                <div className="skeleton" style={{ height: 280 }} aria-hidden="true" />
+              </>
+            ) : (
+              <p className="notice">{analysisError ?? "There's no recording for this session, so speaking metrics aren't available."}</p>
+            )}
+          </section>
+
+          <details className="script-block">
+            <summary>
+              <h2 className="h2">The conversation</h2>
+              <span className="muted">{rec.analysis ? "Every word, with filler words highlighted." : "Live transcript from the session."}</span>
+            </summary>
+            <div className="card">
+              <Script rec={rec} name={persona.name} onSeek={audioUrl ? seek : undefined} playback={pb} />
+            </div>
+          </details>
+
+          {(rec.analysis || coach?.source === "llm") && (
+            <p className="report__credit small muted">
+              {rec.analysis && "Speaking metrics come from transcribing the recording with AssemblyAI's Universal-3.5 Pro. "}
+              {coach?.source === "llm" && `Coach notes are written by ${coach.model} through AssemblyAI's LLM Gateway.`}
+            </p>
+          )}
+
+          {audioUrl && (
+            <div className="player">
+              <span className="player__label">Recording</span>
+              <audio ref={audioRef} controls preload="metadata" src={audioUrl} onError={() => void loadAudio()} {...audioEvents} />
+            </div>
+          )}
         </div>
-      </details>
+      </div>
 
-      {(rec.analysis || coach?.source === "llm") && (
-        <p className="report__credit small muted">
-          {rec.analysis && "Speaking metrics come from transcribing the recording with AssemblyAI's Universal-3.5 Pro. "}
-          {coach?.source === "llm" && `Coach notes are written by ${coach.model} through AssemblyAI's LLM Gateway.`}
-        </p>
-      )}
+      <img className="report-page__bottom" src="/backdrops/Results-Bottom.svg" alt="" width={2170} height={428} aria-hidden="true" />
 
-      {audioUrl && (
-        <div className="player">
-          <span className="player__label">Recording</span>
-          <audio ref={audioRef} controls preload="metadata" src={audioUrl} onError={() => void loadAudio()} {...audioEvents} />
-        </div>
-      )}
     </div>
   );
 }
@@ -639,6 +679,16 @@ function StatusLabel({ status, text }: { status: Status; text: string }) {
         )}
       </svg>
       {text}
+    </span>
+  );
+}
+
+/** The next scene's person, as a small portrait (or their initial). */
+function NextFace({ scene }: { scene: Scene }) {
+  const p = scene.personas[0];
+  return (
+    <span className={`avatar report__next-face${p.portrait ? " avatar--portrait" : ""}`} style={p.portrait ? portraitFit(p.portrait) : undefined} aria-hidden="true">
+      {p.portrait ? <img src={p.portrait.src} alt="" width={44} height={44} /> : p.name[0]}
     </span>
   );
 }

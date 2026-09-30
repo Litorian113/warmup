@@ -7,26 +7,54 @@ const GROUPS: { key: keyof Guide; title: string; emoji: string; tint: string }[]
   { key: "exits", title: "Getting out", emoji: "1F6AA", tint: "#fae2d4" },
 ];
 
-/** Scene-specific ways in, through and out of the conversation, as a row of cards you scroll sideways. */
-export default function SceneGuide({ guide, title = "How to handle this one" }: { guide: Guide; title?: string }) {
+/**
+ * Scene-specific ways in, through and out of the conversation, as a row of cards you scroll sideways.
+ * With `used`, each card is marked: a green check for moves you used, an amber marker for the rest,
+ * which come first.
+ */
+export default function SceneGuide({ guide, used, title = "How to handle this one" }: { guide: Guide; used?: Set<string>; title?: string }) {
+  const cards = GROUPS.flatMap((g) => guide[g.key].map((tip) => ({ tip, group: g, done: used?.has(tip.title) })));
+  if (used) cards.sort((a, b) => Number(a.done) - Number(b.done));
+  const open = cards.filter((c) => !c.done).length;
   return (
     <section className="block guide" aria-labelledby="guide-title">
       <div className="block__head">
         <h2 id="guide-title" className="h2">
           {title}
         </h2>
-        <p className="muted">Ways in, through and out of this conversation, each with a line to try. Scroll sideways for more.</p>
+        <p className="muted">
+          {used
+            ? `You used ${cards.length - open} of these ${cards.length} moves. The ${open} marked ones are worth trying on your next go.`
+            : "Ways in, through and out of this conversation, each with a line to try."}{" "}
+          Scroll sideways for more.
+        </p>
       </div>
       <ul className="guide__row" tabIndex={0} aria-label={title}>
-        {GROUPS.flatMap((g) => guide[g.key].map((t) => <Tip key={`${g.key}-${t.title}`} tip={t} group={g} />))}
+        {cards.map(({ tip, group, done }) => (
+          <Tip key={`${group.key}-${tip.title}`} tip={tip} group={group} done={used ? !!done : undefined} />
+        ))}
       </ul>
     </section>
   );
 }
 
-function Tip({ tip, group }: { tip: GuideTip; group: (typeof GROUPS)[number] }) {
+function Tip({ tip, group, done }: { tip: GuideTip; group: (typeof GROUPS)[number]; done?: boolean }) {
   return (
-    <li className="guide__card">
+    <li className={`guide__card${done ? " is-used" : ""}`}>
+      {done !== undefined && (
+        <span className={`guide__mark guide__mark--${done ? "used" : "open"}`} title={done ? "You did this" : "Try this next time"}>
+          {done ? (
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 3.5v5.5M8 12v.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+            </svg>
+          )}
+          <span className="sr-only">{done ? "You did this. " : "Not tried yet. "}</span>
+        </span>
+      )}
       <span className="guide__group" style={{ background: group.tint }}>
         <Emoji code={group.emoji} size={18} />
         {group.title}
