@@ -256,6 +256,8 @@ async function main() {
     await page.getByRole("button", { name: "Start talking" }).click();
     await page.waitForSelector(".room", { timeout: 20000 });
     log("session live");
+    const scrolled = await page.waitForFunction(() => scrollY === 0, null, { timeout: 2000 }).then(() => 0, () => page.evaluate(() => scrollY));
+    if (scrolled > 0) console.log(`  FAIL: the room opened scrolled down by ${scrolled}px, with its top bar out of view`);
 
     const say = async (clip) => {
       log(`YOU: ${clip.text}`);

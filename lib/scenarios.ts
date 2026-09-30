@@ -144,7 +144,7 @@ export const SCENES: Scene[] = [
     extraRules:
       "You're working the counter. When they order, repeat it back naturally and ask for their name for the cup. Make light small talk while you make the drink, like asking about their plans for the day. After four or five exchanges the drink is ready: hand it over and wish them a good day.",
     keyterms: ["Jess", "oat milk", "flat white", "cortado", "matcha"],
-    backdrop: "/backdrops/cafe.png",
+    backdrop: "/backdrops/cafe.webp", // blurred behind the page, so a small WebP of cafe.png is enough
   },
   {
     id: "coworker",

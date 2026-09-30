@@ -285,6 +285,10 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
   const orbRef = useRef<HTMLDivElement>(null);
   const micRef = useRef<HTMLSpanElement>(null);
 
+  // Start at the top: on a phone you scroll down the briefing to press Start, and the room would
+  // otherwise open at that scroll position, with the title and the End button out of view.
+  useEffect(() => window.scrollTo({ top: 0, behavior: "instant" }), []);
+
   // Audio levels drive the orb and mic dot every frame without re-rendering React.
   useEffect(() => {
     let raf = 0;
