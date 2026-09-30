@@ -4,6 +4,22 @@ export const AGENT_RATE = 24000;
 const BLOCK = AGENT_RATE / 20; // 50 ms of agent audio
 const ECHO_TAIL_MS = 200; // how long the voice lingers in the mic after playback (room, buffers)
 
+/**
+ * Loads a worklet from public/worklets. It's fetched like any other file and handed over as a blob:
+ * behind Vercel's Security Checkpoint the worklet's own request is challenged (429) even after the
+ * page has passed, while an ordinary fetch carries the checkpoint's cookie.
+ */
+async function addWorklet(ctx: AudioContext, name: string) {
+  const res = await fetch(`/worklets/${name}.js`);
+  if (!res.ok) throw new Error(`The app's audio didn't load (error ${res.status}). Reload the page and try again.`);
+  const url = URL.createObjectURL(new Blob([await res.text()], { type: "text/javascript" }));
+  try {
+    await ctx.audioWorklet.addModule(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export class MicCapture {
   private ctx?: AudioContext;
   private stream?: MediaStream;
@@ -22,7 +38,7 @@ export class MicCapture {
       },
     });
     this.ctx = new AudioContext();
-    await this.ctx.audioWorklet.addModule("/worklets/mic-processor.js");
+    await addWorklet(this.ctx, "mic-processor");
     const source = this.ctx.createMediaStreamSource(this.stream);
     const node = new AudioWorkletNode(this.ctx, "mic-processor", {
       processorOptions: { targetRate: AGENT_RATE, chunkMs: 50 },
@@ -78,7 +94,7 @@ export class Player {
   /** Loads the playback worklet. The context itself must be created inside the click handler. */
   async start() {
     if (this.ctx.state === "suspended") await this.ctx.resume();
-    await this.ctx.audioWorklet.addModule("/worklets/player-processor.js");
+    await addWorklet(this.ctx, "player-processor");
     this.node = new AudioWorkletNode(this.ctx, "player-processor", {
       numberOfInputs: 0,
       outputChannelCount: [1],

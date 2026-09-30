@@ -114,6 +114,8 @@ As a result, any metric calculated per utterance was off. Pauses at the splits w
 
 **The microphone needs HTTPS.** Browsers only allow `getUserMedia` on https or localhost. To test on a phone over Tailscale we serve the production build over HTTPS with a self-signed certificate (`npm run start:https`).
 
+**Vercel's Security Checkpoint stops audio worklets from loading.** With the checkpoint on, every request needs the cookie a browser gets for passing it. Page loads and `fetch` send it, but `audioWorklet.addModule()` still got the checkpoint's 429, even with `credentials: "include"`, so no session could start ("Unable to load a worklet's module"). The app now fetches each worklet like any other file and loads it from a blob URL. (tested 30 September 2026 in Chromium; `lib/voice/audio.ts`)
+
 **In-page WebRTC defaults to 32 kbit/s Opus.** For call audio that never leaves the device, the page adds `maxaveragebitrate=96000` to the Opus `fmtp` line in the answer. We measured the target going from 32000 to 96000, and continuous audio from 30 to 97 kbit/s. The in-page connection is otherwise clean: in a 60-second conversation, about 40 ms was concealed (once, while connecting), with no lost packets and a 32 ms jitter buffer.
 
 ## Testing without a human
