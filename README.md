@@ -16,7 +16,7 @@ Seven scenes on a five-level ladder, from low stakes to the moments people dread
 | 2 | Coffee machine small talk | Marcus, from another team |
 | 3 | Talk to a stranger at a party | Sam, at the snack table |
 | 4 | The quiet one at a networking event | Daniel, reserved and tired |
-| 4 | First date | Nina or Theo |
+| 4 | First date | Theo or Nina |
 | 5 | Ask someone out | Lena or Jonah, whose answer depends on you |
 | 5 | Speak on the spot | Priya, a meetup host: 90 seconds on a random topic, then two questions |
 

@@ -125,7 +125,12 @@ export default function Report({ id }: { id: string }) {
     },
   };
 
-  if (rec === undefined) return <div className="wrap center-state"><span className="spinner" /></div>;
+  if (rec === undefined)
+    return (
+      <div className="wrap center-state">
+        <span className="spinner" />
+      </div>
+    );
   if (rec === null)
     return (
       <div className="wrap center-state">
@@ -144,6 +149,7 @@ export default function Report({ id }: { id: string }) {
   const coach = rec.coach;
   const goalsDone = { ...rec.goals };
   if (!talk) for (const g of coach?.goals ?? []) if (g.done) goalsDone[g.id] = true;
+  const reached = scene.goals.filter((g) => goalsDone[g.id]).length;
   const tiles = rec.analysis ? tilesFor(rec.analysis.metrics, rec, talk) : null;
   const when = new Date(rec.createdAt).toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
 
@@ -163,20 +169,30 @@ export default function Report({ id }: { id: string }) {
           <div className="skeleton" style={{ height: 96, maxWidth: 720 }} aria-label="Writing your feedback" />
         )}
         <p className="report__outcome">
-          {outcomeText(rec.outcome, persona, scene.kind)}{" "}
-          {talk ? "Audience attention" : `${persona.name}'s interest`} went from {rec.startWarmth} to {rec.finalWarmth}.
+          {outcomeText(rec.outcome, persona, scene.kind)} {talk ? "Audience attention" : `${persona.name}'s interest`} went from{" "}
+          {rec.startWarmth} to {rec.finalWarmth}.
         </p>
-        <GoalList scene={scene} done={goalsDone} inline />
-        <div className="report__actions">
-          <Link className="btn" href={`/practice/${scene.id}`}>
-            Practice this again
-          </Link>
-          {next && (
-            <Link className="btn btn--ghost" href={`/practice/${next.id}`}>
-              Next: {next.title}
+
+        <aside className="report__goals glass-card" aria-labelledby="goals-title">
+          <h2 id="goals-title" className="glass-card__title">
+            Goals
+            <span className="report__goals-count">
+              {reached} of {scene.goals.length} reached
+            </span>
+          </h2>
+          <GoalList scene={scene} done={goalsDone} openLabel="Next time" />
+          <div className="report__actions">
+            <Link className="btn" href={`/practice/${scene.id}`}>
+              Practice this again
             </Link>
-          )}
-        </div>
+            {next && (
+              <Link className="btn btn--ghost report__next" href={`/practice/${next.id}`}>
+                <span className="report__next-label">Up next</span>
+                {next.title}
+              </Link>
+            )}
+          </div>
+        </aside>
       </header>
 
       <section className="block" aria-labelledby="curve-title">
@@ -184,7 +200,9 @@ export default function Report({ id }: { id: string }) {
           <h2 id="curve-title" className="h2">
             {talk ? "How the room's attention moved" : `How ${persona.name}'s interest moved`}
           </h2>
-          <p className="muted">{talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}</p>
+          <p className="muted">
+            {talk ? "Attention sags in long silences and rises with clear answers." : "Hover or tab through the dots to see what moved it."}
+          </p>
         </div>
         <div className="card">
           <WarmthChart
@@ -268,7 +286,10 @@ export default function Report({ id }: { id: string }) {
                   <PlayButton at={mo.at} playback={pb} onToggle={seek} disabled={!audioUrl} />
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
-                  <StatusLabel status={mo.kind === "great" ? "good" : mo.kind === "missed" ? "meh" : "bad"} text={mo.kind === "great" ? "Great moment" : mo.kind === "missed" ? "Missed chance" : "Awkward moment"} />
+                  <StatusLabel
+                    status={mo.kind === "great" ? "good" : mo.kind === "missed" ? "meh" : "bad"}
+                    text={mo.kind === "great" ? "Great moment" : mo.kind === "missed" ? "Missed chance" : "Awkward moment"}
+                  />
                   <p className="moment__quote">“{mo.quote}”</p>
                   <p>{mo.comment}</p>
                   {mo.better && <p className="moment__better">You could say: “{mo.better.replace(/^[“"]|[”"]$/g, "")}”</p>}
@@ -464,7 +485,8 @@ function tilesFor(m: Metrics, rec: SessionRecord, talk: boolean): TileProps[] {
     value: m.wpm === null ? "–" : String(m.wpm),
     unit: "words/min",
     status: m.wpm === null ? "meh" : m.wpm < 105 ? "meh" : m.wpm > 180 ? "meh" : "good",
-    statusText: m.wpm === null ? "Not enough speech" : m.wpm < 105 ? "On the slow side" : m.wpm > 180 ? "On the fast side" : "Easy to follow",
+    statusText:
+      m.wpm === null ? "Not enough speech" : m.wpm < 105 ? "On the slow side" : m.wpm > 180 ? "On the fast side" : "Easy to follow",
     note: "Around 120 to 170 words a minute is comfortable to listen to.",
   };
   const fillers: TileProps = {
@@ -473,7 +495,8 @@ function tilesFor(m: Metrics, rec: SessionRecord, talk: boolean): TileProps[] {
     unit: m.fillersPerMin === null ? "total" : "per min",
     // In short sessions one "uh" is a high per-minute rate, so 0-1 fillers always count as barely any.
     status: m.fillers <= 1 || m.fillersPerMin === null || m.fillersPerMin < 2 ? "good" : m.fillersPerMin < 4 ? "meh" : "bad",
-    statusText: m.fillers <= 1 || m.fillersPerMin === null || m.fillersPerMin < 2 ? "Barely any" : m.fillersPerMin < 4 ? "A few" : "Quite a lot",
+    statusText:
+      m.fillers <= 1 || m.fillersPerMin === null || m.fillersPerMin < 2 ? "Barely any" : m.fillersPerMin < 4 ? "A few" : "Quite a lot",
     note: fillerBreakdown ? `${m.fillers} in total: ${fillerBreakdown}.` : "No ums or uhs detected.",
   };
   const pause: TileProps = {
@@ -506,7 +529,12 @@ function tilesFor(m: Metrics, rec: SessionRecord, talk: boolean): TileProps[] {
         value: String(ticCount),
         status: ticCount <= 3 ? "good" : ticCount <= 7 ? "meh" : "bad",
         statusText: ticCount <= 3 ? "Hardly any" : ticCount <= 7 ? "Noticeable" : "Frequent",
-        note: tics.length ? `Most used: ${tics.slice(0, 3).map(([w, n]) => `“${w}” ×${n}`).join(", ")}.` : "No “like”, “you know” or “basically” habits.",
+        note: tics.length
+          ? `Most used: ${tics
+              .slice(0, 3)
+              .map(([w, n]) => `“${w}” ×${n}`)
+              .join(", ")}.`
+          : "No “like”, “you know” or “basically” habits.",
       },
       qaTile(rec),
     ];
@@ -519,7 +547,10 @@ function tilesFor(m: Metrics, rec: SessionRecord, talk: boolean): TileProps[] {
       unit: "sec",
       status: m.avgGap === null || m.avgGap <= 1.8 ? "good" : m.avgGap <= 3 ? "meh" : "bad",
       statusText: m.avgGap === null ? "Not measured" : m.avgGap <= 1.8 ? "Natural" : m.avgGap <= 3 ? "A little hesitant" : "Long pauses",
-      note: m.longestGap === null ? "Time from the end of their line to your first word." : `Time from the end of their line to your first word. Longest: ${m.longestGap}s.`,
+      note:
+        m.longestGap === null
+          ? "Time from the end of their line to your first word."
+          : `Time from the end of their line to your first word. Longest: ${m.longestGap}s.`,
     },
     {
       label: "Your share of the talking",
@@ -555,7 +586,8 @@ function qaTile(rec: SessionRecord): TileProps {
     value: avg === null ? "–" : avg.toFixed(0),
     unit: avg === null ? undefined : "sec",
     status: avg !== null && avg >= 15 && avg <= 45 ? "good" : "meh",
-    statusText: avg === null ? "No answers recorded" : avg < 8 ? "Very brief" : avg < 15 ? "A bit short" : avg > 45 ? "Long-winded" : "Well sized",
+    statusText:
+      avg === null ? "No answers recorded" : avg < 8 ? "Very brief" : avg < 15 ? "A bit short" : avg > 45 ? "Long-winded" : "Well sized",
     note: "Good answers take 15 to 45 seconds: answer, give a reason, stop.",
   };
 }
@@ -565,7 +597,14 @@ function StatusLabel({ status, text }: { status: Status; text: string }) {
     <span className={`status status--${status}`}>
       <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
         {status === "good" ? (
-          <path d="M2.5 7.5 5.5 10.5 11.5 3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M2.5 7.5 5.5 10.5 11.5 3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         ) : status === "meh" ? (
           <path d="M3 7h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         ) : (

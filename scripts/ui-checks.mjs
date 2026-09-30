@@ -90,8 +90,9 @@ try {
 
   await page.goto(`${BASE}/practice/first-date`, { waitUntil: "networkidle" });
   check("first date offers a choice of two dates", (await page.locator(".choice__opt").count()) === 2);
+  check("Theo is the date by default", (await page.textContent(".brief__panel h2"))?.includes("Theo") ?? false);
   await page.locator(".choice__opt").nth(1).click();
-  check("choosing Theo updates the start panel", (await page.textContent(".brief__panel h2"))?.includes("Theo") ?? false);
+  check("choosing Nina updates the start panel", (await page.textContent(".brief__panel h2"))?.includes("Nina") ?? false);
 
   // microphone blocked
   await page.addInitScript(() => {

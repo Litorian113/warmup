@@ -10,7 +10,7 @@ import InterestGauge from "./InterestGauge";
 import { Conversation, TALK_SECONDS, type LiveState } from "@/lib/conversation";
 import { mmss } from "@/lib/metrics";
 import { planRetake, type RetakePlan } from "@/lib/retake";
-import { sceneById, sceneTraits, type Persona, type Scene } from "@/lib/scenarios";
+import { portraitFit, sceneById, sceneTraits, type Persona, type Scene } from "@/lib/scenarios";
 import { getSession } from "@/lib/store";
 import { warmthColor } from "@/lib/warmth";
 
@@ -220,8 +220,12 @@ function Backdrop({ src, soft }: { src: string; soft?: boolean }) {
 /** A persona's portrait (or initial) in a small circle. */
 function Avatar({ persona }: { persona: Persona }) {
   return (
-    <span className={`avatar${persona.portrait ? " avatar--portrait" : ""}`} aria-hidden="true">
-      {persona.portrait ? <Image src={persona.portrait} alt="" width={1200} height={1200} sizes="120px" /> : persona.name[0]}
+    <span
+      className={`avatar${persona.portrait ? " avatar--portrait" : ""}`}
+      style={persona.portrait ? portraitFit(persona.portrait) : undefined}
+      aria-hidden="true"
+    >
+      {persona.portrait ? <Image src={persona.portrait.src} alt="" width={1254} height={1254} sizes="120px" /> : persona.name[0]}
     </span>
   );
 }
@@ -287,7 +291,9 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
 
   // Start at the top: on a phone you scroll down the briefing to press Start, and the room would
   // otherwise open at that scroll position, with the title and the End button out of view.
-  useEffect(() => window.scrollTo({ top: 0, behavior: "instant" }), []);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" }); // braces: an effect may only return a cleanup
+  }, []);
 
   // Audio levels drive the orb and mic dot every frame without re-rendering React.
   useEffect(() => {
@@ -383,13 +389,19 @@ function Room({ conv, state, hints, setHints }: { conv: Conversation; state: Liv
             </>
           ) : (
             <>
-              <div className={`orb${persona.portrait ? " orb--portrait" : ""}`} ref={orbRef}>
+              <div
+                className={`orb${persona.portrait ? " orb--portrait" : ""}`}
+                style={persona.portrait ? portraitFit(persona.portrait) : undefined}
+                ref={orbRef}
+              >
                 <div className="orb__halo" aria-hidden="true" />
                 <InterestGauge value={state.warmth} label={gaugeLabel} />
                 <div className="orb__core" aria-hidden="true">
                   {!persona.portrait && persona.name[0]}
                 </div>
-                {persona.portrait && <Image className="orb__face" src={persona.portrait} alt="" width={1200} height={1200} sizes="260px" priority />}
+                {persona.portrait && (
+                  <Image className="orb__face" src={persona.portrait.src} alt="" width={1254} height={1254} sizes="260px" priority />
+                )}
               </div>
               <p className="stage__mood">
                 {talk

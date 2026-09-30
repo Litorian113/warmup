@@ -37,11 +37,12 @@ const LINES = {
     "Wait, you play football? Me too, I used to play every week. Where do you play?",
     "Nice. Well, good luck with the meeting. Have a good one!",
   ],
+  // with Theo, the default date
   "first-date": [
     "Ha, no, it's me. Hi! Um, did you find the place okay?",
-    "So you're an architect, right? What's the most fun building you've worked on?",
-    "That's amazing. I actually got lost in Venice once for a whole afternoon, and it ended up being the best part of the trip.",
-    "No way, you got lost in Lisbon too? What did you end up finding?",
+    "So you're a chef, right? What's the most chaotic night you've had in the kitchen?",
+    "No way. I actually tried to learn to surf last summer, and I spent most of it falling off the board.",
+    "Wait, you surf too? How bad are we talking?",
   ],
   // a warm conversation, then the ask: Lena should say yes
   "ask-out": [

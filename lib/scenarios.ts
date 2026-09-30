@@ -13,10 +13,21 @@ export interface Persona {
   /** Private details for the prompt, revealed only when asked. */
   bio: string;
   style: string;
-  /** Portrait for the orb (a file in public/): a round illustration on a transparent square,
-   *  whose circle fills the orb. Anything outside the circle, like hair, may overlap its edge. */
-  portrait?: string;
+  /** Portrait for the orb and avatars: a round illustration on a transparent square, whose circle
+   *  fills the orb. Anything outside the circle, like hair, may overlap its edge. */
+  portrait?: Portrait;
 }
+
+export interface Portrait {
+  src: string;
+  /** Where the circle sits in the square image, as fractions of its size: diameter, center x,
+   *  center y. Measured per image, since each drawing's circle is a little different. */
+  circle: [d: number, cx: number, cy: number];
+}
+
+/** CSS variables that scale and shift a portrait so its circle exactly fills its round frame. */
+export const portraitFit = ({ circle: [d, cx, cy] }: Portrait) =>
+  ({ "--pw": `${(100 / d).toFixed(2)}%`, "--px": `${(-cx * 100).toFixed(2)}%`, "--py": `${(-cy * 100).toFixed(2)}%` }) as Record<string, string>;
 
 export type GoalCheck =
   | { kind: "regex"; who: "you" | "them"; re: RegExp }
@@ -126,7 +137,7 @@ export const SCENES: Scene[] = [
         pronouns: "she/her",
         age: 26,
         voice: "mary",
-        portrait: "/personas/Jess-Persona.png",
+        portrait: { src: "/personas/Jess-Persona.png", circle: [0.877, 0.4975, 0.5183] },
         intro: "The barista. Friendly, a little chatty.",
         bio: "You've worked at this café for two years. You're saving up for a trip to Japan in the spring. You're training for your first half marathon and your knees hate you. You think oat milk is overrated but you'd never say that to a customer.",
         style: "Easygoing and upbeat, with a dry sense of humor. You chat while you work.",
@@ -160,6 +171,7 @@ export const SCENES: Scene[] = [
         pronouns: "he/him",
         age: 34,
         voice: "george",
+        portrait: { src: "/personas/Marcus.png", circle: [0.881, 0.498, 0.514] },
         intro: "A designer from another team. You've only ever said hi.",
         bio: "You're a product designer. You spent the weekend at your sister's place helping her move, and you're sore. You play five-a-side football on Wednesdays. You've been rewatching an old detective show and you're weirdly invested. You have a two-year-old who wakes up at 5am.",
         style: "Friendly, a bit tired, self-deprecating. You warm up quickly if someone's curious.",
@@ -176,6 +188,7 @@ export const SCENES: Scene[] = [
     minutes: "3 min",
     extraRules: "You're waiting for the coffee machine. After a few minutes, your coffee is ready and you head to a meeting.",
     keyterms: ["Marcus"],
+    backdrop: "/backdrops/coworker.webp",
   },
   {
     id: "party",
@@ -191,6 +204,7 @@ export const SCENES: Scene[] = [
         pronouns: "she/her",
         age: 29,
         voice: "jane",
+        portrait: { src: "/personas/Sam.png", circle: [0.915, 0.4996, 0.5203] },
         intro: "Someone at the snack table. You don't know her.",
         bio: "You edit podcasts for a living. You moved to the city a year ago from Portland. You have an anxious rescue dog named Pixel. You just got back from a hiking trip in the mountains. You know the host, Maya, from the climbing gym.",
         style: "Relaxed and a little sarcastic. Warm once someone shows real curiosity.",
@@ -210,6 +224,7 @@ export const SCENES: Scene[] = [
     minutes: "3–5 min",
     extraRules: "You don't volunteer your name. If they ask, tell them.",
     keyterms: ["Sam", "Maya", "Pixel", "Portland"],
+    backdrop: "/backdrops/party.webp",
   },
   {
     id: "networking",
@@ -225,6 +240,7 @@ export const SCENES: Scene[] = [
         pronouns: "he/him",
         age: 41,
         voice: "charles",
+        portrait: { src: "/personas/Daniel.png", circle: [0.923, 0.4988, 0.5179] },
         intro: "Standing alone with a drink. Doesn't look chatty.",
         bio: "You run operations at a company that builds software for shipping ports. Your boss made you come tonight. Secretly you love your work: you once rerouted a whole ship because of a spreadsheet error and saved the company a fortune. You restore old bicycles on weekends. You're British and moved here three years ago.",
         style: "Reserved, dry, and brief at first. You light up when someone asks a specific, curious question, especially about ports or bikes.",
@@ -241,6 +257,7 @@ export const SCENES: Scene[] = [
     minutes: "3–5 min",
     extraRules: "At first give short answers of a few words. Don't ask questions back until they've asked you something specific and curious.",
     keyterms: ["Daniel", "LinkedIn", "logistics"],
+    backdrop: "/backdrops/networking.webp",
   },
   {
     id: "first-date",
@@ -252,22 +269,24 @@ export const SCENES: Scene[] = [
     blurb: "Skip the interview. Share real stories, find what you both love.",
     personas: [
       {
-        name: "Nina",
-        pronouns: "she/her",
-        age: 30,
-        voice: "anna",
-        intro: "Your date. Architect, British, loves live music.",
-        bio: "You're an architect who designs libraries and schools. You grew up in Bristol. You play bass badly in a band that has had exactly two gigs. You once got lost in Lisbon for a whole day and it was the best day of the trip. You're a bit nervous too, but you hide it well.",
-        style: "Witty and curious, a little teasing. You have opinions and you don't flatter.",
-      },
-      {
         name: "Theo",
         pronouns: "he/him",
         age: 31,
         voice: "paul",
+        portrait: { src: "/personas/Theo.png", circle: [0.897, 0.4992, 0.5075] },
         intro: "Your date. Chef, British, loves hiking.",
         bio: "You're a chef at a busy restaurant and you've burned your arm more times than you can count. You grew up in Manchester. You're learning to surf and you're terrible at it. You once cooked for a famous musician who sent the soup back. You're a bit nervous too, but you hide it well.",
         style: "Warm, funny, self-deprecating. You have opinions and you don't flatter.",
+      },
+      {
+        name: "Nina",
+        pronouns: "she/her",
+        age: 30,
+        voice: "anna",
+        portrait: { src: "/personas/Nina.png", circle: [0.886, 0.4972, 0.5036] },
+        intro: "Your date. Architect, British, loves live music.",
+        bio: "You're an architect who designs libraries and schools. You grew up in Bristol. You play bass badly in a band that has had exactly two gigs. You once got lost in Lisbon for a whole day and it was the best day of the trip. You're a bit nervous too, but you hide it well.",
+        style: "Witty and curious, a little teasing. You have opinions and you don't flatter.",
       },
     ],
     greetings: [
@@ -284,7 +303,8 @@ export const SCENES: Scene[] = [
     minutes: "4–6 min",
     extraRules:
       "Keep it respectful and PG. You get bored by interview-style questions asked one after another, and by bragging. You warm up to curiosity, humor, and real stories.",
-    keyterms: ["Nina", "Theo", "Bristol", "Manchester", "Lisbon"],
+    keyterms: ["Theo", "Nina", "Manchester", "Bristol", "Lisbon"],
+    backdrop: "/backdrops/first-date.webp",
   },
   {
     id: "ask-out",
@@ -300,6 +320,7 @@ export const SCENES: Scene[] = [
         pronouns: "she/her",
         age: 28,
         voice: "vera",
+        portrait: { src: "/personas/Lena.png", circle: [0.908, 0.4996, 0.4996] },
         intro: "Reading a mystery novel. You've been chatting for a few minutes.",
         bio: "You're a vet nurse. You're reading a mystery novel and you already guessed the killer. You love old films and terrible puns. You moved here last year and you're still finding your people.",
         style: "Bright and quick, with a gentle, teasing humor.",
@@ -309,6 +330,7 @@ export const SCENES: Scene[] = [
         pronouns: "he/him",
         age: 29,
         voice: "jean",
+        portrait: { src: "/personas/Jonah.png", circle: [0.91, 0.4992, 0.5142] },
         intro: "Reading a sci-fi novel. You've been chatting for a few minutes.",
         bio: "You're a high school physics teacher. You're reading a sci-fi novel your students recommended. You love board games and bad puns. You moved here last year and you're still finding your people.",
         style: "Calm, warm, and a bit nerdy, with a gentle, teasing humor.",
@@ -332,6 +354,7 @@ export const SCENES: Scene[] = [
       delighted: "If they ask you out now, say yes happily and suggest something specific.",
     },
     keyterms: ["Lena", "Jonah"],
+    backdrop: "/backdrops/ask-out.webp",
   },
   {
     id: "stage",
@@ -347,6 +370,7 @@ export const SCENES: Scene[] = [
         pronouns: "she/her",
         age: 38,
         voice: "eve",
+        portrait: { src: "/personas/Priya.png", circle: [0.924, 0.4971, 0.4904] },
         intro: "The host. Kind, but her audience asks sharp questions.",
         bio: "You host a monthly meetup where people give surprise talks. You're encouraging but honest, and you ask questions that make people think.",
         style: "Warm, crisp, and a little playful. Clear stage-host energy.",
@@ -361,6 +385,7 @@ export const SCENES: Scene[] = [
     profile: { baseline: 60, gain: 1, loss: 1 },
     minutes: "3–4 min",
     keyterms: ["Priya"],
+    backdrop: "/backdrops/stage.webp",
   },
 ];
 

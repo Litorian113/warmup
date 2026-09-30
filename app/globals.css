@@ -421,9 +421,9 @@ body:has(.room) .site-header {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 114.3%;
+  width: var(--pw, 114.3%);
   height: auto;
-  transform: translate(-49.75%, -52.1%);
+  transform: translate(var(--px, -49.75%), var(--py, -52.1%));
 }
 
 .demo__status {
@@ -878,6 +878,35 @@ body:has(.room) .site-header {
   height: auto;
   margin-top: calc(-20% + 200px);
   pointer-events: none;
+  /* its ground runs on below it, so the drift never opens a gap above the next section */
+  box-shadow: 0 160px 0 var(--ground);
+}
+
+/* Parallax: while the divider crosses the screen, the hills lag behind the page, rising from
+   below into place. Scroll-driven, so no script; browsers without it keep them still. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .divider {
+      animation: hills-drift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 60%;
+    }
+  }
+}
+
+@keyframes hills-drift {
+  from {
+    transform: translateY(110px);
+  }
+  to {
+    transform: translateY(-30px);
+  }
+}
+
+/* The drifting divider may slide over this section's background, never over its content. */
+.ground > * {
+  position: relative;
+  z-index: 1;
 }
 
 .ground {
@@ -1282,9 +1311,9 @@ body:has(.home) .site-footer {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 114.3%;
+  width: var(--pw, 114.3%);
   height: auto;
-  transform: translate(-49.75%, -52.1%);
+  transform: translate(var(--px, -49.75%), var(--py, -52.1%));
 }
 
 .mic-note {
@@ -1681,9 +1710,9 @@ body:has(.home) .site-footer {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 114.3%;
+  width: var(--pw, 114.3%);
   height: auto;
-  transform: translate(-49.75%, -52.1%) scale(calc(1 + var(--lvl) * 0.04));
+  transform: translate(var(--px, -49.75%), var(--py, -52.1%)) scale(calc(1 + var(--lvl) * 0.04));
   transform-origin: 50% 52%;
   transition: transform 0.08s linear;
   pointer-events: none;
@@ -1925,9 +1954,64 @@ body:has(.home) .site-footer {
   padding-top: 16px;
 }
 
+/* The verdict on the left; the goals and what to do next on the right. */
 .report__head {
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(28px, 5vw, 64px);
+  row-gap: 16px;
+  align-content: start;
+}
+
+/* the back link and the meta line run across the top; the verdict and the goals share the rows below */
+.report__head > * {
+  grid-column: 1;
+}
+
+.report__head > .link-back,
+.report__head > .report__meta {
+  grid-column: 1 / -1;
+}
+
+.report__goals {
+  grid-column: 2;
+  grid-row: 3 / span 2;
+  align-self: center; /* level with the middle of the headline and subtext beside it */
+}
+
+.report__goals .glass-card__title {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.report__goals-count {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.report__goals .goals {
+  gap: 12px;
+}
+
+.report__goals .goal {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.report__goals .goal.is-done .goal__text {
+  color: var(--ink);
+}
+
+.goal__open {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--meh-pill);
+  color: var(--meh);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .report__meta {
@@ -1956,11 +2040,39 @@ body:has(.home) .site-footer {
   gap: 8px 22px;
 }
 
+/* The two buttons side by side, equally tall: "Practice this again" at its natural width, and
+   the next scene taking the rest, its name under a small "Up next". */
 .report__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
   margin-top: 6px;
+}
+
+.report__actions .btn {
+  min-height: 44px;
+  padding: 5px 18px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.report__next {
+  flex-direction: column;
+  gap: 0;
+}
+
+.report__next-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+@media (max-width: 480px) {
+  .report__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .block {
@@ -2732,6 +2844,16 @@ body:has(.home) .site-footer {
 }
 
 @media (max-width: 960px) {
+  .report__head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report__head > *,
+  .report__head > .link-back,
+  .report__head > .report__meta,
+  .report__goals {
+    grid-column: 1;
+    grid-row: auto;
+  }
   .history {
     grid-template-columns: minmax(0, 1fr);
   }
