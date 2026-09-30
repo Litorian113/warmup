@@ -2864,6 +2864,66 @@ body:has(.home) .site-footer {
   box-shadow: 0 10px 30px -12px rgba(29, 36, 51, 0.45);
 }
 
+.tooltip--above {
+  transform: translateY(-100%);
+}
+
+/* the card for a coach moment's flag: light, in the moment's color */
+.flag-card {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  width: 280px;
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--rule);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+  box-shadow: 0 16px 34px -18px rgba(29, 36, 51, 0.4);
+}
+
+.flag-card--great {
+  border-top-color: var(--good);
+}
+
+.flag-card--missed {
+  border-top-color: var(--meh);
+}
+
+.flag-card--awkward {
+  border-top-color: var(--bad);
+}
+
+.flag-card__kind {
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.flag-card__quote {
+  --c: 0.7;
+  color: var(--ink);
+}
+
+.flag-card__hint {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #6b5bd2;
+}
+
+.chart__moment.is-hovered .chart__stem {
+  stroke-dasharray: none;
+  opacity: 1;
+}
+
+.chart__moment.is-hovered .chart__flag {
+  transform: scale(1.15);
+}
+
 .tooltip__value {
   font-weight: 750;
   font-size: 1rem;

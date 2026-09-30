@@ -50,6 +50,7 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
   const wrap = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(760);
   const [hover, setHover] = useState<number | null>(null);
+  const [flag, setFlag] = useState<number | null>(null); // the coach moment whose flag is hovered or focused
   const gid = useId().replace(/:/g, "");
 
   useEffect(() => {
@@ -100,7 +101,12 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
   };
 
   const hp = hover !== null ? data[hover] : null;
+  // The tooltip sits beside the point, on the side with room, and above or below it so it never covers the flags.
   const tipLeft = hp ? (x(hp.t) > w / 2 ? Math.max(0, x(hp.t) - 312) : Math.min(w - 300, x(hp.t) + 12)) : 0;
+  const tipBelow = hp ? y(hp.value) < m.top + ih / 2 : false;
+  const tipTop = hp ? (tipBelow ? y(hp.value) + 14 : y(hp.value) - 14) : 0;
+  const fm = flag !== null ? moments[flag] : null;
+  const flagLeft = fm ? Math.max(0, Math.min(w - 280, x(fm.at) - 140)) : 0;
   const hoverPlaying = hp ? isPlayingFrom(playback, turnSpot(hp.t)) : false;
   const key = (e: React.KeyboardEvent, t: number) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -195,15 +201,21 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
           return (
             <g
               key={i}
-              className={`chart__moment${active ? " is-playing" : ""}`}
+              className={`chart__moment${active ? " is-playing" : ""}${flag === i ? " is-hovered" : ""}`}
               tabIndex={0}
               role="button"
               aria-pressed={active}
               aria-label={`Moment ${i + 1}, ${KIND[mo.kind].label.toLowerCase()} at ${mmss(mo.at)}: ${mo.comment}. ${active ? "Pause" : "Play"}.`}
               onClick={() => onSeek?.(mo.at)}
               onKeyDown={(e) => key(e, mo.at)}
+              onPointerEnter={() => {
+                setFlag(i);
+                setHover(null);
+              }}
+              onPointerLeave={() => setFlag(null)}
+              onFocus={() => setFlag(i)}
+              onBlur={() => setFlag(null)}
             >
-              <title>{`${i + 1}. ${KIND[mo.kind].label} at ${mmss(mo.at)}. Click to ${active ? "pause" : "play"}.`}</title>
               <line className="chart__stem" x1={cx} x2={cx} y1={fy + 12} y2={cy} style={{ stroke: color }} />
               <circle cx={cx} cy={cy} r={5} fill="#fff" stroke={color} strokeWidth={2.5} />
               <circle cx={cx} cy={fy} r={18} fill="transparent" />
@@ -236,7 +248,7 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
       )}
 
       {hp && (
-        <div className="tooltip" style={{ left: tipLeft, top: 4 }} role="presentation">
+        <div className={`tooltip${tipBelow ? "" : " tooltip--above"}`} style={{ left: tipLeft, top: tipTop }} role="presentation">
           <span className="tooltip__value">
             {hp.value} / 100, {hover === 0 ? "at the start" : (talk ? TALK_BANDS : CONVO_BANDS)[MOODS.indexOf(moodFor(hp.value))].toLowerCase()}
           </span>
@@ -252,6 +264,17 @@ export default function WarmthChart({ points, start, duration, moments, talk, on
             </ul>
           )}
           {onSeek && hover !== 0 && hp.kind !== "tick" && <span className="tooltip__hint">{hoverPlaying ? "Click to pause" : "Click to hear this turn"}</span>}
+        </div>
+      )}
+
+      {fm && (
+        <div className={`flag-card flag-card--${fm.kind}`} style={{ left: flagLeft, top: 62 }} role="presentation">
+          <span className="flag-card__kind">
+            {flag! + 1}. {KIND[fm.kind].label}, at {mmss(fm.at)}
+          </span>
+          {fm.quote && <span className="flag-card__quote">“{fm.quote.length > 120 ? `${fm.quote.slice(0, 120)}…` : fm.quote}”</span>}
+          {fm.comment && <span>{fm.comment}</span>}
+          {onSeek && <span className="flag-card__hint">{isPlayingFrom(playback, fm.at) ? "Click to pause" : "Click to hear this moment"}</span>}
         </div>
       )}
 
