@@ -1422,7 +1422,7 @@ body:has(.home) .site-footer {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2px solid var(--rule);
+  border: 2px solid var(--ink-3); /* an open goal has to read as a checkbox: 4:1 on the glass panels */
   display: grid;
   place-items: center;
   margin-top: 1px;
