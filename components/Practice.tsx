@@ -99,6 +99,23 @@ function Briefing(props: {
   const { scene, personaIdx } = props;
   const p = scene.personas[personaIdx];
   const traits = sceneTraits(scene);
+
+  // On a phone the start panel is a long scroll down, so a bar at the bottom offers Start until
+  // the panel's own button comes into view. The bar is hidden by CSS on wider screens.
+  const goRef = useRef<HTMLDivElement>(null);
+  const [goInView, setGoInView] = useState(false);
+  useEffect(() => {
+    const el = goRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setGoInView(e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  // an error from the bar shows in the panel, so bring it into view
+  useEffect(() => {
+    if (props.error) goRef.current?.scrollIntoView({ block: "center" });
+  }, [props.error]);
+
   return (
     <div className="brief-page">
       {scene.backdrop && <Backdrop src={scene.backdrop} soft />}
@@ -185,7 +202,7 @@ function Briefing(props: {
                 Show a hint for what to say next
               </label>
             )}
-            <div className="brief__go">
+            <div className="brief__go" ref={goRef}>
               {props.error && (
                 <p className="notice" role="alert">
                   {props.error}
@@ -203,6 +220,11 @@ function Briefing(props: {
             </div>
           </aside>
         </div>
+      </div>
+      <div className="brief-dock" data-hidden={goInView} aria-hidden={goInView}>
+        <button className="btn btn--big" onClick={props.onStart} disabled={props.connecting} tabIndex={goInView ? -1 : undefined}>
+          {props.connecting ? "Connecting…" : scene.kind === "talk" ? "Start talking" : `Start talking with ${p.name}`}
+        </button>
       </div>
     </div>
   );

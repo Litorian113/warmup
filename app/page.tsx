@@ -26,9 +26,10 @@ export default function Home() {
               <Link className="btn btn--big" href="/practice/cafe">
                 Start with a coffee order
               </Link>
-              <Link className="btn btn--ghost btn--big" href="#scenes">
+              {/* a plain anchor: Next's Link skips a hash that's already in the URL, so a second tap did nothing */}
+              <a className="btn btn--ghost btn--big" href="#scenes">
                 Choose a scene
-              </Link>
+              </a>
             </div>
             <p className="hero__note">
               <Emoji code="1F399" size={22} />

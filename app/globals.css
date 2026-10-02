@@ -1831,6 +1831,11 @@ body:has(.home) .site-footer {
   gap: 10px;
 }
 
+/* the phone's Start bar (Practice.tsx), shown in the responsive section below */
+.brief-dock {
+  display: none;
+}
+
 .brief__label {
   font-weight: 700;
   font-size: 1rem;
@@ -3829,6 +3834,30 @@ body:has(.home) .site-footer {
   .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* One column: the start panel ends the page, so a bar at the bottom offers Start on the way
+     there and steps aside once the panel's own button is in view. */
+  .brief-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: grid;
+    padding: 12px clamp(16px, 4vw, 40px) max(12px, env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--paper) 55%, color-mix(in srgb, var(--paper) 0%, transparent));
+    transition: opacity 0.2s, translate 0.2s;
+  }
+  .brief-dock[data-hidden="true"] {
+    opacity: 0;
+    translate: 0 100%;
+    pointer-events: none;
+  }
+  .brief-dock .btn {
+    width: min(100%, 520px);
+    justify-self: center;
+    box-shadow: 0 14px 30px -14px rgba(29, 36, 51, 0.55);
+  }
 }
 
 @media (max-width: 640px) {
@@ -3927,8 +3956,27 @@ body:has(.home) .site-footer {
     justify-content: space-between;
     flex-wrap: nowrap;
   }
+  /* A short phone fits the person, their words, the hint and the status line in one screen:
+     the portrait and the captions give up height first. */
   .captions {
-    height: 200px;
+    height: clamp(140px, 24dvh, 200px);
+  }
+  .orb {
+    width: clamp(128px, 20dvh, 170px);
+  }
+  .stage {
+    gap: 12px;
+    padding-top: 4px;
+  }
+  .room__bar {
+    padding-top: 10px;
+    padding-bottom: 6px;
+  }
+  .room__actions .btn--quiet {
+    min-height: 44px;
+  }
+  .room__grid {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
   .tip-slot {
     --tip-slot: 142px; /* the bubble wraps to three lines */
@@ -3956,6 +4004,41 @@ body:has(.home) .site-footer {
   .player {
     border-radius: var(--r-m);
     flex-wrap: wrap;
+  }
+}
+
+/* Touch screens: a tap leaves :hover stuck on the last thing touched, so drop the hover looks
+   that would linger, and answer the press itself instead. */
+@media (hover: none) {
+  a,
+  button,
+  summary,
+  label {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn--ghost:hover {
+    background: transparent;
+    border-color: var(--rule);
+  }
+  .scene:hover {
+    transform: none;
+    box-shadow: 0 12px 30px -20px rgba(50, 60, 90, 0.45);
+  }
+  .history__item:hover {
+    transform: none;
+    border-color: rgba(214, 220, 230, 0.7);
+    box-shadow: 0 14px 30px -24px rgba(60, 50, 90, 0.4);
+  }
+  .btn {
+    transition: transform 0.12s ease, background-color 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn:active:not(:disabled),
+  .scene:active,
+  .history__item:active {
+    transform: scale(0.97);
+  }
+  .link-back {
+    min-height: 44px;
   }
 }
 
