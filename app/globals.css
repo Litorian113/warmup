@@ -1831,10 +1831,15 @@ body:has(.home) .site-footer {
   gap: 10px;
 }
 
-/* the phone's Start bar (Practice.tsx), shown in the responsive section below */
-.brief-dock {
+/* phones only, shown in the responsive section below */
+.to-top {
   display: none;
 }
+
+.mic-note__short {
+  display: none;
+}
+
 
 .brief__label {
   font-weight: 700;
@@ -3835,28 +3840,102 @@ body:has(.home) .site-footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* One column: the start panel ends the page, so a bar at the bottom offers Start on the way
-     there and steps aside once the panel's own button is in view. */
-  .brief-dock {
-    position: fixed;
-    left: 0;
-    right: 0;
+  /* One column: the start panel would end a long page, so it becomes a compact sheet that
+     sticks to the bottom of the screen the whole way down, and settles in place at the end. */
+  .brief-page {
+    padding-bottom: 0;
+  }
+  .brief-page .brief__panel {
+    position: sticky;
     bottom: 0;
     z-index: 10;
+    align-items: center;
+    gap: 8px;
+    margin: 0 calc(-1 * clamp(16px, 4vw, 40px));
+    padding: 12px clamp(16px, 4vw, 40px) max(10px, env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 -14px 34px -22px rgba(60, 40, 20, 0.4);
+  }
+  .brief-page .brief__panel > * {
+    width: min(100%, 560px);
+  }
+  .brief-page .brief__who {
+    gap: 12px;
+  }
+  .brief-page .brief__who .avatar {
+    width: 42px;
+    height: 42px;
+    box-shadow: 0 0 0 3px #fff, 0 8px 18px -10px rgba(60, 40, 20, 0.5);
+  }
+  .brief-page .brief__who .h3 {
+    margin-bottom: 0;
+    font-size: 1.02rem;
+  }
+  .brief-page .brief__who .small {
+    font-size: 0.85rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .brief-page .brief__how {
+    display: none;
+  }
+  .brief-page .toggle {
+    font-size: 0.9rem;
+  }
+  .brief-page .brief__go {
+    gap: 6px;
+  }
+  .brief-page .brief__go .btn--big {
+    min-height: 52px;
+  }
+  .brief-page .mic-note {
+    justify-content: center;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    gap: 6px;
+  }
+  .brief-page .mic-note .emoji {
+    width: 16px;
+    height: 16px;
+  }
+  .brief-page .mic-note__long {
+    display: none;
+  }
+  .brief-page .mic-note__short {
+    display: inline;
+  }
+
+  .to-top {
+    position: fixed;
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 15;
     display: grid;
-    padding: 12px clamp(16px, 4vw, 40px) max(12px, env(safe-area-inset-bottom));
-    background: linear-gradient(to top, var(--paper) 55%, color-mix(in srgb, var(--paper) 0%, transparent));
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--rule);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--ink);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 12px 28px -14px rgba(29, 36, 51, 0.5);
+    cursor: pointer;
     transition: opacity 0.2s, translate 0.2s;
   }
-  .brief-dock[data-hidden="true"] {
+  .to-top[data-shown="false"] {
     opacity: 0;
-    translate: 0 100%;
+    translate: 0 12px;
     pointer-events: none;
   }
-  .brief-dock .btn {
-    width: min(100%, 520px);
-    justify-self: center;
-    box-shadow: 0 14px 30px -14px rgba(29, 36, 51, 0.55);
+  /* on the replay, it sits above the recording's player */
+  body:has(.player) .to-top {
+    bottom: calc(var(--player-h, 64px) + 26px);
   }
 }
 
@@ -3956,30 +4035,112 @@ body:has(.home) .site-footer {
     justify-content: space-between;
     flex-wrap: nowrap;
   }
-  /* A short phone fits the person, their words, the hint and the status line in one screen:
-     the portrait and the captions give up height first. */
-  .captions {
-    height: clamp(140px, 24dvh, 200px);
-  }
-  .orb {
-    width: clamp(128px, 20dvh, 170px);
-  }
-  .stage {
-    gap: 12px;
-    padding-top: 4px;
-  }
+  /* The whole room fits one phone screen: the bar, the person, their words, the hint and the
+     goals. The portrait and the captions give up height on shorter screens. */
   .room__bar {
     padding-top: 10px;
-    padding-bottom: 6px;
+    padding-bottom: 4px;
   }
-  .room__actions .btn--quiet {
-    min-height: 44px;
+  .room__actions {
+    width: 100%;
+  }
+  .room__actions .btn {
+    flex: 1;
+    min-height: 40px;
   }
   .room__grid {
-    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 10px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
   }
+  .stage {
+    gap: 8px;
+    padding-top: 0;
+  }
+  .orb {
+    width: clamp(112px, 17dvh, 160px);
+    margin-top: clamp(18px, 3.5dvh, 36px); /* clear of the buttons, with the gauge above her */
+  }
+  .stage__mood {
+    font-size: 1rem;
+  }
+  .captions,
+  .transcript-live {
+    height: clamp(72px, 13dvh, 150px);
+  }
+  .caption--them {
+    font-size: 1.2rem;
+  }
+  .caption--you {
+    font-size: 1rem;
+  }
+  /* the hint as a small card on one or two lines, label inline, without the thought trail */
   .tip-slot {
-    --tip-slot: 142px; /* the bubble wraps to three lines */
+    --tip-slot: 62px;
+  }
+  .tip {
+    margin-bottom: 0;
+    padding: 8px 16px;
+    border-radius: 18px;
+    font-size: 0.92rem;
+    text-wrap: pretty;
+  }
+  .tip::before,
+  .tip::after {
+    display: none;
+  }
+  .tip__label {
+    display: inline;
+    margin-right: 6px;
+  }
+  .tip__label .emoji {
+    margin-right: 4px;
+  }
+  .side--goals {
+    --mark: 18px;
+    --mark-gap: 10px;
+    gap: 6px;
+    padding: 12px 16px;
+    border-radius: 18px;
+  }
+  .side--goals .panel__title {
+    font-size: 0.95rem;
+  }
+  .side--goals .goals {
+    gap: 4px;
+  }
+  .side--goals .goal {
+    grid-template-columns: var(--mark) 1fr;
+    gap: var(--mark-gap);
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+  .side--goals .goal__mark {
+    width: 18px;
+    height: 18px;
+    border-width: 1.5px;
+  }
+  .stage > .muted:first-child {
+    margin-top: 10px; /* "Your topic", clear of the button */
+  }
+  .topic {
+    max-width: none;
+    font-size: 1.4rem;
+  }
+  .dial ~ .small {
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+  .dial {
+    margin: 6px 0 0;
+  }
+  .countdown {
+    width: clamp(104px, 16dvh, 132px);
+    height: clamp(104px, 16dvh, 132px);
+  }
+  .countdown__num {
+    font-size: 2rem;
   }
   /* The reasons stay on one row, so the page doesn't grow and shrink with them: centered while they
      fit, scrolled sideways when they don't. */
